@@ -18,7 +18,7 @@ from src.utils.config import DASHBOARD_COLUMNS, METHODOLOGY_COLUMNS
 
 @pytest.fixture
 def pop_dataset():
-    """Clean dataset DataFrame mimicking acs5_total_population.csv."""
+    """Clean dataset DataFrame mimicking acs1_total_population.csv."""
     return pd.DataFrame({
         "year": [2020, 2021, 2022, 2023],
         "geography": ["Baltimore City"] * 4,
@@ -63,54 +63,56 @@ class TestComputeAllMetrics:
     def test_output_has_dashboard_columns(self, pop_dataset):
         result = compute_all_metrics(
             [TOTAL_POPULATION_METRIC],
-            {"acs5_total_population": pop_dataset},
+            {"acs1_total_population": pop_dataset},
         )
         assert list(result.columns) == DASHBOARD_COLUMNS
 
     def test_one_row_per_year(self, pop_dataset):
         result = compute_all_metrics(
             [TOTAL_POPULATION_METRIC],
-            {"acs5_total_population": pop_dataset},
+            {"acs1_total_population": pop_dataset},
         )
         assert len(result) == 4
 
     def test_indicator_id_populated(self, pop_dataset):
         result = compute_all_metrics(
             [TOTAL_POPULATION_METRIC],
-            {"acs5_total_population": pop_dataset},
+            {"acs1_total_population": pop_dataset},
         )
         assert all(result["indicator_id"] == "total_population")
 
     def test_values_match_source_data(self, pop_dataset):
         result = compute_all_metrics(
             [TOTAL_POPULATION_METRIC],
-            {"acs5_total_population": pop_dataset},
+            {"acs1_total_population": pop_dataset},
         )
         assert list(result["value"]) == [602274, 592211, 584548, 577193]
 
-    def test_period_format_5year(self, pop_dataset):
+    def test_period_format_1year(self, pop_dataset):
+        """1-year estimates produce a single year as the period."""
         result = compute_all_metrics(
             [TOTAL_POPULATION_METRIC],
-            {"acs5_total_population": pop_dataset},
+            {"acs1_total_population": pop_dataset},
         )
-        assert result.iloc[0]["period"] == "2016-2020"
-        assert result.iloc[3]["period"] == "2019-2023"
+        assert result.iloc[0]["period"] == "2020"
+        assert result.iloc[3]["period"] == "2023"
 
-    def test_period_format_single_year(self, pop_dataset):
+    def test_period_format_5year(self, pop_dataset):
+        """5-year estimates (future tract-level) produce a year range."""
         metric = Metric(
             id="test", name="Test", description="Test",
             compute=lambda row: row["total_population"],
-            source_dataset="acs5_total_population",
+            source_dataset="acs1_total_population",
             source_table="B01003",
             formula_description="test",
             source_name="Test", source_url="", unit="count",
             update_frequency="annual",
-            period_format="single",
+            period_format="5-year",
         )
         result = compute_all_metrics(
-            [metric], {"acs5_total_population": pop_dataset},
+            [metric], {"acs1_total_population": pop_dataset},
         )
-        assert result.iloc[0]["period"] == "2020"
+        assert result.iloc[0]["period"] == "2016-2020"
 
     def test_missing_dataset_raises_keyerror(self):
         with pytest.raises(KeyError, match="requires dataset"):
@@ -162,7 +164,7 @@ class TestComputeAllMetrics:
         metric_a = Metric(
             id="pop_a", name="Pop A", description="A",
             compute=lambda row: row["total_population"],
-            source_dataset="acs5_total_population",
+            source_dataset="acs1_total_population",
             source_table="B01003",
             formula_description="direct",
             source_name="ACS", source_url="", unit="count",
@@ -171,7 +173,7 @@ class TestComputeAllMetrics:
         metric_b = Metric(
             id="pop_b", name="Pop B", description="B",
             compute=lambda row: row["total_population"] / 1000,
-            source_dataset="acs5_total_population",
+            source_dataset="acs1_total_population",
             source_table="B01003",
             formula_description="pop / 1000",
             source_name="ACS", source_url="", unit="count",
@@ -179,7 +181,7 @@ class TestComputeAllMetrics:
         )
         result = compute_all_metrics(
             [metric_a, metric_b],
-            {"acs5_total_population": pop_dataset},
+            {"acs1_total_population": pop_dataset},
         )
         # 4 years × 2 metrics = 8 rows
         assert len(result) == 8

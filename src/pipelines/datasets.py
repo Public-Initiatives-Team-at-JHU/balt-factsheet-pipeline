@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from src.pipelines.census_acs import fetch_acs_city
-from src.utils.config import ACS_YEARS
+from src.utils.config import ACS1_YEARS
 from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
 
 # Census uses this sentinel for suppressed margins of error
@@ -53,8 +53,8 @@ class ACSDataset:
 
     @property
     def file_name(self) -> str:
-        """Dataset file name without extension. Prefixed with acs5_."""
-        return f"acs5_{self.name}"
+        """Dataset file name without extension. Prefixed with acs1_."""
+        return f"acs1_{self.name}"
 
     @property
     def variables(self) -> list:
@@ -121,7 +121,7 @@ def pull_and_clean_dataset(
         Clean DataFrame with columns: year, geography, plus human-readable names.
     """
     if years is None:
-        years = ACS_YEARS
+        years = ACS1_YEARS
 
     all_rows = []
 

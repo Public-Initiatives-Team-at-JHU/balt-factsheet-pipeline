@@ -62,7 +62,7 @@ def simple_dataset():
 class TestACSDataset:
 
     def test_file_name_prefix(self, simple_dataset):
-        assert simple_dataset.file_name == "acs5_total_population"
+        assert simple_dataset.file_name == "acs1_total_population"
 
     def test_variables_extracts_census_codes(self, simple_dataset):
         assert simple_dataset.variables == ["B01003_001E", "B01003_001M"]
@@ -291,4 +291,4 @@ class TestTotalPopulationDefinition:
         assert "total_population_moe" in var_names
 
     def test_file_name(self):
-        assert TOTAL_POPULATION.file_name == "acs5_total_population"
+        assert TOTAL_POPULATION.file_name == "acs1_total_population"

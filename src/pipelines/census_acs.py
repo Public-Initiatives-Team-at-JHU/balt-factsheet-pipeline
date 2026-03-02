@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 """
-Census American Community Survey (ACS) 5-Year Estimates API client.
+Census American Community Survey (ACS) API client.
 
-Handles fetching city-level and tract-level data from the Census ACS API.
+City-level data uses ACS 1-Year estimates (more current, single-year snapshot).
+Tract-level data uses ACS 5-Year estimates (larger sample for small geographies).
+
 Returns raw list-of-lists as the Census API provides them — cleaning
 and type conversion happen in the datasets layer.
 
-Census API docs: https://www.census.gov/data/developers/data-sets/acs-5year.html
-Variable lookup: https://api.census.gov/data/{year}/acs/acs5/groups.html
+Census API docs: https://www.census.gov/data/developers/data-sets/acs-1year.html
+Variable lookup: https://api.census.gov/data/{year}/acs/acs1/groups.html
 """
 
 import requests
 
 from src.utils.config import (
-    CENSUS_ACS_BASE,
+    CENSUS_ACS1_BASE,
+    CENSUS_ACS5_BASE,
     CENSUS_API_KEY,
     CENSUS_MAX_VARIABLES_PER_CALL,
     COUNTY_FIPS,
@@ -23,11 +26,17 @@ from src.utils.config import (
 
 
 def fetch_acs_city(variables: list[str], year: int) -> list[list[str]]:
-    """Fetch ACS 5-Year data for Baltimore City (county level).
+    """Fetch ACS 1-Year data for Baltimore City (county level).
+
+    Uses 1-Year estimates which provide a single-year snapshot. More current
+    than 5-Year estimates, and Baltimore City (pop ~577K) is large enough
+    to meet the 65,000 population threshold.
+
+    Note: 2020 ACS 1-Year was not released due to COVID.
 
     Args:
         variables: Census variable codes, e.g. ["B01003_001E", "B01003_001M"]
-        year: ACS vintage year (e.g. 2023 for 2019-2023 estimates)
+        year: ACS vintage year (e.g. 2023)
 
     Returns:
         List of lists: [[header_row], [data_row]].
@@ -43,7 +52,7 @@ def fetch_acs_city(variables: list[str], year: int) -> list[list[str]]:
             f"got {len(variables)}. Split into multiple calls."
         )
 
-    url = CENSUS_ACS_BASE.format(year=year)
+    url = CENSUS_ACS1_BASE.format(year=year)
     params = {
         "get": ",".join(variables),
         "for": f"county:{COUNTY_FIPS}",
@@ -75,7 +84,7 @@ def fetch_acs_tracts(variables: list[str], year: int) -> list[list[str]]:
             f"got {len(variables)}. Split into multiple calls."
         )
 
-    url = CENSUS_ACS_BASE.format(year=year)
+    url = CENSUS_ACS5_BASE.format(year=year)
     params = {
         "get": ",".join(variables),
         "for": "tract:*",
@@ -106,7 +115,7 @@ def verify_variables(table_id: str, variables: list[str], year: int) -> dict:
             "invalid": list of variable codes that don't exist
             "labels": dict mapping valid codes to their labels
     """
-    url = f"{CENSUS_ACS_BASE.format(year=year)}/groups/{table_id}.json"
+    url = f"{CENSUS_ACS5_BASE.format(year=year)}/groups/{table_id}.json"
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
 

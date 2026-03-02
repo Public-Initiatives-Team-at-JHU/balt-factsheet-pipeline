@@ -46,7 +46,7 @@ class Metric:
     update_frequency: str  # "annual", "monthly", etc.
     geographic_level: str = "city"
     caveats: str = ""
-    period_format: str = "5-year"  # How to label the period column
+    period_format: str = "1-year"  # How to label the period column
 
 
 def compute_all_metrics(
@@ -139,16 +139,16 @@ TOTAL_POPULATION_METRIC = Metric(
     name="Total Population",
     description="Total population of Baltimore City",
     compute=lambda row: row["total_population"],
-    source_dataset="acs5_total_population",
+    source_dataset="acs1_total_population",
     source_table="B01003",
     formula_description="Direct read of B01003_001E (total population estimate)",
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B01003",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B01003",
     unit="count",
     update_frequency="annual",
     caveats=(
-        "ACS 5-year estimates represent a period, not a point in time. "
-        "For example, 2023 vintage covers 2019-2023."
+        "ACS 1-year estimates represent a single calendar year. "
+        "2020 ACS 1-Year was not released due to COVID data collection issues."
     ),
 )
 
@@ -157,11 +157,11 @@ MEDIAN_HOUSEHOLD_INCOME_METRIC = Metric(
     name="Median Household Income",
     description="Median household income in the past 12 months (inflation-adjusted dollars)",
     compute=lambda row: row["median_household_income"],
-    source_dataset="acs5_median_household_income",
+    source_dataset="acs1_median_household_income",
     source_table="B19013",
     formula_description="Direct read of B19013_001E (median household income)",
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B19013",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B19013",
     unit="dollars",
     update_frequency="annual",
     caveats=(
@@ -180,18 +180,18 @@ UNEMPLOYMENT_RATE_METRIC = Metric(
         if row["civilian_labor_force"] and row["civilian_labor_force"] > 0
         else None
     ),
-    source_dataset="acs5_employment_status",
+    source_dataset="acs1_employment_status",
     source_table="B23025",
     formula_description=(
         "B23025_005E (unemployed) / B23025_003E (civilian labor force) × 100"
     ),
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B23025",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B23025",
     unit="percent",
     update_frequency="annual",
     caveats=(
         "ACS unemployment differs from BLS LAUS methodology. "
-        "ACS uses 5-year period estimates; BLS uses monthly household surveys. "
+        "ACS uses annual survey estimates; BLS uses monthly household surveys. "
         "BLS LAUS is the more commonly cited source for monthly unemployment."
     ),
 )
@@ -207,14 +207,14 @@ BACHELORS_PLUS_METRIC = Metric(
         if row["pop_25_and_over"] and row["pop_25_and_over"] > 0
         else None
     ),
-    source_dataset="acs5_education_attainment",
+    source_dataset="acs1_education_attainment",
     source_table="B15003",
     formula_description=(
         "(B15003_022E + _023E + _024E + _025E) / B15003_001E × 100. "
         "Numerator = Bachelor's + Master's + Professional + Doctorate."
     ),
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B15003",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B15003",
     unit="percent",
     update_frequency="annual",
 )
@@ -233,15 +233,15 @@ LESS_THAN_HS_METRIC = Metric(
         if row["pop_25_and_over"] and row["pop_25_and_over"] > 0
         else None
     ),
-    source_dataset="acs5_education_attainment",
+    source_dataset="acs1_education_attainment",
     source_table="B15003",
     formula_description=(
         "Sum(B15003_002E through _016E) / B15003_001E × 100. "
         "Numerator = all categories below 'Regular high school diploma' "
         "(no schooling through 12th grade, no diploma)."
     ),
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B15003",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B15003",
     unit="percent",
     update_frequency="annual",
 )
@@ -260,15 +260,15 @@ MORTGAGE_COST_BURDEN_METRIC = Metric(
         if row["computed_total"] and row["computed_total"] > 0
         else None
     ),
-    source_dataset="acs5_mortgage_costs",
+    source_dataset="acs1_mortgage_costs",
     source_table="B25091",
     formula_description=(
         "(B25091_008E + _009E + _010E + _011E) / B25091_002E × 100. "
         "Numerator = units paying 30%+ of income. "
         "Denominator = units with computed cost ratio (excludes zero/negative income)."
     ),
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B25091",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B25091",
     unit="percent",
     update_frequency="annual",
     caveats="Only includes owner-occupied units with a mortgage, not outright owners.",
@@ -289,7 +289,7 @@ RENT_COST_BURDEN_METRIC = Metric(
             and (row["total_renters"] - row["not_computed"]) > 0)
         else None
     ),
-    source_dataset="acs5_rent_costs",
+    source_dataset="acs1_rent_costs",
     source_table="B25070",
     formula_description=(
         "(B25070_007E + _008E + _009E + _010E) / (B25070_001E - B25070_011E) × 100. "
@@ -297,8 +297,8 @@ RENT_COST_BURDEN_METRIC = Metric(
         "Denominator = total renters minus 'not computed' "
         "(excludes zero/negative income and no-cash-rent units)."
     ),
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B25070",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B25070",
     unit="percent",
     update_frequency="annual",
     caveats="Excludes no-cash-rent units and zero/negative income households from denominator.",
@@ -309,11 +309,11 @@ AVG_HOUSEHOLD_SIZE_METRIC = Metric(
     name="Average Household Size",
     description="Average number of persons per occupied housing unit",
     compute=lambda row: row["avg_household_size"],
-    source_dataset="acs5_household_size",
+    source_dataset="acs1_household_size",
     source_table="B25010",
     formula_description="Direct read of B25010_001E (average household size of occupied units)",
-    source_name="ACS 5-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT5Y2023.B25010",
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B25010",
     unit="ratio",
     update_frequency="annual",
 )

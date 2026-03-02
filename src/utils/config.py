@@ -23,16 +23,20 @@ COUNTY_FIPS_FULL = "24510" # Combined for BLS queries
 
 # ── Census API ───────────────────────────────────────────────────────────────
 CENSUS_API_BASE = "https://api.census.gov/data"
-CENSUS_ACS_BASE = f"{CENSUS_API_BASE}/{{year}}/acs/acs5"
+CENSUS_ACS1_BASE = f"{CENSUS_API_BASE}/{{year}}/acs/acs1"
+CENSUS_ACS5_BASE = f"{CENSUS_API_BASE}/{{year}}/acs/acs5"
 CENSUS_PEP_BASE = f"{CENSUS_API_BASE}/{{year}}/pep/charv"
 CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY", "")
 
-# ACS vintage range for fact sheet trend data
-# Latest available ACS 5-year: 2023 (covers 2019-2023)
-# Earliest for trend: 2020 vintage (covers 2016-2020)
+# ACS vintage ranges
+# 1-Year estimates: city-level fact sheet (more current, single-year snapshot)
+# NOTE: 2020 ACS 1-Year was NOT released due to COVID data collection issues
+ACS1_YEARS = [2021, 2022, 2023]
+
+# 5-Year estimates: tract/neighborhood level (larger sample, small geographies)
 ACS_LATEST_YEAR = 2023
 TREND_START_YEAR = 2020
-ACS_YEARS = list(range(TREND_START_YEAR, ACS_LATEST_YEAR + 1))  # [2020, 2021, 2022, 2023]
+ACS5_YEARS = list(range(TREND_START_YEAR, ACS_LATEST_YEAR + 1))  # [2020, 2021, 2022, 2023]
 
 # PEP years — population estimates available 2020-2023
 PEP_YEARS = list(range(2020, 2024))
