@@ -28,10 +28,15 @@ CENSUS_ACS5_BASE = f"{CENSUS_API_BASE}/{{year}}/acs/acs5"
 CENSUS_PEP_BASE = f"{CENSUS_API_BASE}/{{year}}/pep/charv"
 CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY", "")
 
-# ACS vintage ranges
-# 1-Year estimates: city-level fact sheet (more current, single-year snapshot)
-# NOTE: 2020 ACS 1-Year was NOT released due to COVID data collection issues
-ACS1_YEARS = [2021, 2022, 2023]
+# ACS 1-Year estimates: city-level fact sheet (more current, single-year snapshot)
+# NOTE: 2020 ACS 1-Year was NOT released due to COVID data collection issues.
+# Not all tables are available from 2005 — each dataset specifies its own start_year.
+ACS1_LATEST_YEAR = 2023
+ACS1_EARLIEST_YEAR = 2005  # First year ACS 1-Year was released
+
+def acs1_years(start: int = ACS1_EARLIEST_YEAR) -> list:
+    """Generate ACS 1-Year vintage years from start to latest, excluding 2020."""
+    return [y for y in range(start, ACS1_LATEST_YEAR + 1) if y != 2020]
 
 # 5-Year estimates: tract/neighborhood level (larger sample, small geographies)
 ACS_LATEST_YEAR = 2023

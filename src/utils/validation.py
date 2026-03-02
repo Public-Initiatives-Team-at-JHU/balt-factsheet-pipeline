@@ -17,6 +17,9 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+# 2020 ACS 1-Year was not released due to COVID — don't warn about this gap
+KNOWN_MISSING_YEARS = {2020}
+
 
 @dataclass
 class ValidationResult:
@@ -103,7 +106,7 @@ def validate_dataset(df: pd.DataFrame, dataset_name: str) -> ValidationResult:
     years = sorted(df["year"].dropna().unique())
     if len(years) >= 2:
         expected = list(range(int(years[0]), int(years[-1]) + 1))
-        missing = set(expected) - set(int(y) for y in years)
+        missing = set(expected) - set(int(y) for y in years) - KNOWN_MISSING_YEARS
         if missing:
             result.add("warning", "year_gaps",
                         f"{dataset_name} has gaps in year sequence: missing {sorted(missing)}",
@@ -198,7 +201,7 @@ def _validate_indicator(
     years = sorted(group["year"].dropna().unique())
     if len(years) >= 2:
         expected = list(range(int(years[0]), int(years[-1]) + 1))
-        missing = set(expected) - set(int(y) for y in years)
+        missing = set(expected) - set(int(y) for y in years) - KNOWN_MISSING_YEARS
         if missing:
             result.add("warning", "indicator_year_gaps",
                         f"{indicator_id} missing years: {sorted(missing)}",

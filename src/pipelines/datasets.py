@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from src.pipelines.census_acs import fetch_acs_city
-from src.utils.config import ACS1_YEARS
+from src.utils.config import ACS1_EARLIEST_YEAR, acs1_years
 from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
 
 # Census uses this sentinel for suppressed margins of error
@@ -50,6 +50,7 @@ class ACSDataset:
     title: str          # Human-readable title, e.g. "Total Population"
     description: str    # What this dataset covers
     columns: list = field(default_factory=list)  # List[ColumnDef]
+    start_year: int = ACS1_EARLIEST_YEAR  # First year this table is available in ACS 1-Year
 
     @property
     def file_name(self) -> str:
@@ -121,7 +122,7 @@ def pull_and_clean_dataset(
         Clean DataFrame with columns: year, geography, plus human-readable names.
     """
     if years is None:
-        years = ACS1_YEARS
+        years = acs1_years(dataset.start_year)
 
     all_rows = []
 
@@ -240,6 +241,7 @@ EMPLOYMENT_STATUS = ACSDataset(
         "Employment status of the civilian population 16 years and over. "
         "Used to compute unemployment rate."
     ),
+    start_year=2011,  # B23025 not available in ACS 1-Year before 2011
     columns=[
         ColumnDef(
             census_variable="B23025_001E",
@@ -294,6 +296,7 @@ EDUCATION_ATTAINMENT = ACSDataset(
         "Educational attainment for the population 25 years and over. "
         "Serves two metrics: % with Bachelor's+ and % less than HS diploma."
     ),
+    start_year=2008,  # B15003 not available in ACS 1-Year before 2008
     columns=[
         ColumnDef(
             census_variable="B15003_001E",
