@@ -1,0 +1,31 @@
+# Data - ignore contents but keep directory structure via .gitkeep
+data/raw/*
+data/datasets/*
+data/processed/*
+!data/raw/.gitkeep
+!data/datasets/.gitkeep
+!data/processed/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Office temp files
+~$*

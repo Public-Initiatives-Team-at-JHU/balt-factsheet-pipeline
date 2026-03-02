@@ -1,0 +1,14 @@
+[project]
+name = "jhu-public-impact-data"
+version = "0.1.0"
+description = "Data pipelines for JHU Public Impact Initiatives dashboard"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.31",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+geo = ["geopandas>=0.14", "shapely>=2.0"]
+sharepoint = ["Office365-REST-Python-Client>=2.5"]
+dev = ["pytest>=7.0", "pytest-recording>=0.13"]
