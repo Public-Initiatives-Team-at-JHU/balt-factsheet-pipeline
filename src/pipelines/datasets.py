@@ -1053,13 +1053,11 @@ def pull_and_clean_ob_crime_dataset(
         raise ValueError(f"No data returned from Open Baltimore dataset {dataset.dataset_id}")
 
     # Parse and classify each row
+    # fetch_crime_counts_by_year returns: {year: int, description: str, count: int}
     records = []
     for row in raw:
-        # crime_year comes back as "2020-01-01T00:00:00.000"
-        year_str = row.get("crime_year", "")
-        try:
-            year = int(year_str[:4])
-        except (ValueError, IndexError):
+        year = row.get("year")
+        if year is None:
             continue
 
         desc = row.get("description", "").strip().upper()
@@ -1115,7 +1113,8 @@ CRIME_PART1 = OpenBaltimoreDataset(
     description=(
         "Annual Part 1 crime counts from BPD Victim Based Crime Data. "
         "Includes totals for all Part 1, violent, property, and homicide. "
-        "⚠️ Data quality issues exist from May 2021 due to BPD RMS transition."
+        "⚠️ Data starts 2012 (2010-2011 records are incomplete in source). "
+        "⚠️ Data quality issues also exist from May 2021 due to BPD RMS transition."
     ),
-    start_year=2010,
+    start_year=2012,
 )

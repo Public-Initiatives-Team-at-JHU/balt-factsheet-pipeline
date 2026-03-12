@@ -69,10 +69,11 @@ def compute_all_metrics(
     for metric in metrics:
         df = datasets.get(metric.source_dataset)
         if df is None:
-            raise KeyError(
-                f"Metric '{metric.name}' requires dataset '{metric.source_dataset}' "
-                f"but it was not provided. Available: {list(datasets.keys())}"
+            print(
+                f"  WARNING: skipping '{metric.name}' — "
+                f"dataset '{metric.source_dataset}' not available"
             )
+            continue
 
         for _, dataset_row in df.iterrows():
             value = metric.compute(dataset_row)

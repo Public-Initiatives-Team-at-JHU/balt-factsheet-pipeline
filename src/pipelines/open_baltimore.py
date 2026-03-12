@@ -1,37 +1,41 @@
 from __future__ import annotations
 
 """
-Open Baltimore (Socrata) API client.
+Open Baltimore crime data client — ArcGIS FeatureServer.
 
-Baltimore City publishes public data via the Socrata SODA API at
-data.baltimorecity.gov. This module provides a generic SODA client and
-dataset-specific fetch/aggregate functions.
+Baltimore City migrated from Socrata to ArcGIS Hub. The Part 1 (SRS)
+crime dataset is now served from an ArcGIS FeatureServer:
 
-⚠️  DATA QUALITY CAVEAT — BPD Crime Data:
-The Part 1 Victim Based Crime dataset (wsfq-mvij) has known data quality
-issues beginning in May 2021 due to BPD's transition to a new Records
-Management System. 2021 and 2022 annual totals are likely understated.
-Current incident data (2022-present) is in the separate NIBRS Group A
-dataset which uses a different crime classification. Until BPD resolves
-the transition gap, crime trend data should be presented with this caveat.
+  https://services1.arcgis.com/UWYHeuuJISiGmgXx/arcgis/rest/services/
+      Part1_Crime_Beta/FeatureServer/0
 
-Socrata SODA API docs: https://dev.socrata.com/docs/endpoints.html
-Open Baltimore portal:  https://data.baltimorecity.gov
+Coverage: historical SRS data through 12/31/2024. As of 2025 BPD
+switched to NIBRS reporting; a separate dataset covers 2025-present.
+
+⚠️  DATA QUALITY CAVEAT:
+BPD transitioned Records Management Systems in May 2021. Annual totals
+for 2021 and 2022 are likely understated due to incomplete records
+during the transition period.
+
+ArcGIS REST API docs: https://developers.arcgis.com/rest/services-reference/
+Open Baltimore Hub:   https://data.baltimorecity.gov
 """
 
 import requests
 
-from src.utils.config import OPEN_BALT_BASE
+# ── Endpoints ─────────────────────────────────────────────────────────────────
 
-# ── Dataset IDs ───────────────────────────────────────────────────────────────
+# Legacy SRS Part 1 crime data — confirmed via Open Baltimore Hub API 2026-03-12
+BPD_PART1_FEATURESERVER = (
+    "https://services1.arcgis.com/UWYHeuuJISiGmgXx/arcgis/rest/services"
+    "/Part1_Crime_Beta/FeatureServer/0"
+)
 
-BPD_PART1_CRIME_DATASET_ID = "wsfq-mvij"   # BPD Part 1 Victim Based Crime Data
-DEMO_PERMITS_DATASET_ID    = "ad7n-rq74"   # Housing Permits - Demolition
+# Still used for legacy reference in dataset metadata
+BPD_PART1_CRIME_DATASET_ID = "wsfq-mvij"
 
 # ── Crime type classification ─────────────────────────────────────────────────
 # Maps BPD Description values to FBI UCR Part 1 violent/property categories.
-# Verified against BPD dataset documentation. Needs re-check if BPD description
-# values change in future data updates.
 
 VIOLENT_CRIME_TYPES = {
     "HOMICIDE",
@@ -41,7 +45,8 @@ VIOLENT_CRIME_TYPES = {
     "ROBBERY - RESIDENCE",
     "ROBBERY - STREET",
     "AGG. ASSAULT",
-    "SHOOTING",          # BPD-specific; treated as violent for this dataset
+    "COMMON ASSAULT",   # confirmed present in live data
+    "SHOOTING",
 }
 
 PROPERTY_CRIME_TYPES = {
@@ -52,105 +57,114 @@ PROPERTY_CRIME_TYPES = {
     "ARSON",
 }
 
-# Convenience set for all Part 1 types
 PART1_CRIME_TYPES = VIOLENT_CRIME_TYPES | PROPERTY_CRIME_TYPES
 
-# The year BPD's RMS transition introduced data quality issues
 BPD_DATA_QUALITY_ISSUE_YEAR = 2021
 
 
-# ── Generic SODA client ───────────────────────────────────────────────────────
+# ── ArcGIS REST client ────────────────────────────────────────────────────────
 
-def fetch_socrata(
-    dataset_id: str,
-    select: str | None = None,
-    where: str | None = None,
-    group: str | None = None,
-    order: str | None = None,
-    limit: int = 50000,
+def fetch_arcgis_query(
+    feature_server_url: str,
+    where: str = "1=1",
+    out_fields: str = "*",
+    out_statistics: list | None = None,
+    group_by: str | None = None,
+    result_record_count: int = 2000,
 ) -> list[dict]:
-    """Make a Socrata SODA API query and return results as a list of dicts.
-
-    Supports SQL-style SELECT/WHERE/GROUP BY/ORDER BY via Socrata SoQL.
-    For aggregation queries (GROUP BY), limit of 50000 is almost always
-    sufficient. For full incident-level pulls, increase limit as needed.
+    """Query an ArcGIS FeatureServer layer and return attributes as a list of dicts.
 
     Args:
-        dataset_id: 4x4 Socrata dataset ID, e.g. "wsfq-mvij"
-        select: SoQL SELECT clause, e.g. "description, count(*) as count"
-        where: SoQL WHERE clause, e.g. "crimedatetime >= '2005-01-01'"
-        group: SoQL GROUP BY clause, e.g. "description"
-        order: SoQL ORDER BY clause, e.g. "crime_year ASC"
-        limit: Maximum rows to return (Socrata default is 1000; always set this)
+        feature_server_url: Full URL to the FeatureServer layer (ending in /0, /1 etc.)
+        where: SQL WHERE clause, e.g. "CrimeDateTime >= timestamp '2010-01-01 00:00:00'"
+        out_fields: Comma-separated field names or "*" for all
+        out_statistics: List of statistic dicts for aggregation queries, e.g.
+            [{"statisticType": "count", "onStatisticField": "ObjectId",
+              "outStatisticFieldName": "incident_count"}]
+        group_by: Comma-separated field names for GROUP BY (requires out_statistics)
+        result_record_count: Max records to return per request
 
     Returns:
-        List of dicts, one per row. All values are strings.
+        List of attribute dicts, one per result row.
 
     Raises:
-        requests.HTTPError: If the Socrata API returns an error.
+        requests.HTTPError: On HTTP error.
+        ValueError: If ArcGIS returns an error payload.
     """
-    url = f"{OPEN_BALT_BASE}/{dataset_id}.json"
-    params: dict = {"$limit": limit}
+    import json
 
-    if select:
-        params["$select"] = select
-    if where:
-        params["$where"] = where
-    if group:
-        params["$group"] = group
-    if order:
-        params["$order"] = order
+    params: dict = {
+        "where": where,
+        "outFields": out_fields,
+        "returnGeometry": "false",
+        "resultRecordCount": result_record_count,
+        "f": "json",
+    }
 
-    resp = requests.get(url, params=params, timeout=60)
+    if out_statistics is not None:
+        params["outStatistics"] = json.dumps(out_statistics)
+    if group_by is not None:
+        params["groupByFieldsForStatistics"] = group_by
+
+    resp = requests.get(f"{feature_server_url}/query", params=params, timeout=60)
     resp.raise_for_status()
-    return resp.json()
+
+    data = resp.json()
+
+    if "error" in data:
+        raise ValueError(f"ArcGIS API error: {data['error']}")
+
+    return [f["attributes"] for f in data.get("features", [])]
 
 
 # ── Crime-specific fetch ──────────────────────────────────────────────────────
 
 def fetch_crime_counts_by_year(
-    start_year: int = 2005,
-    end_year: int = 2023,
+    start_year: int = 2010,
+    end_year: int = 2024,
 ) -> list[dict]:
     """Fetch BPD Part 1 crime counts aggregated by year and description.
 
-    Uses Socrata SoQL aggregation so we pull ~300 rows (20 years × 15 types)
-    rather than 300K+ incident records. All classification/rate computation
-    happens downstream in pandas.
+    Makes one ArcGIS query per year (using WHERE date range + outStatistics
+    GROUP BY Description). Returns a flat list of dicts with keys:
+    year, description, incident_count.
 
     Args:
         start_year: First year to include (inclusive).
         end_year: Last year to include (inclusive).
 
     Returns:
-        List of dicts with keys: crime_year, description, count.
-        crime_year is an ISO datetime string ("2020-01-01T00:00:00.000").
+        List of dicts: [{"year": 2010, "description": "HOMICIDE", "count": 24}, ...]
     """
-    return fetch_socrata(
-        dataset_id=BPD_PART1_CRIME_DATASET_ID,
-        select=(
-            "date_trunc_y(CrimeDateTime) as crime_year, "
-            "Description as description, "
-            "count(*) as count"
-        ),
-        where=(
-            f"CrimeDateTime >= '{start_year}-01-01T00:00:00.000' "
-            f"AND CrimeDateTime < '{end_year + 1}-01-01T00:00:00.000'"
-        ),
-        group="date_trunc_y(CrimeDateTime), Description",
-        order="crime_year ASC",
-    )
+    results = []
+
+    for year in range(start_year, end_year + 1):
+        rows = fetch_arcgis_query(
+            feature_server_url=BPD_PART1_FEATURESERVER,
+            where=(
+                f"CrimeDateTime >= timestamp '{year}-01-01 00:00:00' "
+                f"AND CrimeDateTime < timestamp '{year + 1}-01-01 00:00:00'"
+            ),
+            out_statistics=[{
+                "statisticType": "count",
+                "onStatisticField": "CrimeDateTime",
+                "outStatisticFieldName": "incident_count",
+            }],
+            group_by="Description",
+            result_record_count=200,  # ~15 crime types per year
+        )
+        for row in rows:
+            results.append({
+                "year": year,
+                "description": (row.get("Description") or "").strip().upper(),
+                "count": int(row.get("incident_count") or 0),
+            })
+
+    return results
 
 
 def classify_crime(description: str) -> str | None:
-    """Classify a BPD crime description as 'violent', 'property', or None.
-
-    Args:
-        description: BPD Description field value (case-insensitive).
-
-    Returns:
-        'violent', 'property', or None if not a Part 1 crime.
-    """
+    """Classify a BPD crime description as 'violent', 'property', or None."""
     desc = description.strip().upper()
     if desc in VIOLENT_CRIME_TYPES:
         return "violent"

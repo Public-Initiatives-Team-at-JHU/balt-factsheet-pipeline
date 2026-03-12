@@ -61,7 +61,7 @@ def fetch_acs_city(variables: list[str], year: int) -> list[list[str]]:
     if CENSUS_API_KEY:
         params["key"] = CENSUS_API_KEY
 
-    resp = requests.get(url, params=params, timeout=30)
+    resp = requests.get(url, params=params, timeout=120)
     resp.raise_for_status()
     return resp.json()
 
@@ -93,7 +93,7 @@ def fetch_acs_tracts(variables: list[str], year: int) -> list[list[str]]:
     if CENSUS_API_KEY:
         params["key"] = CENSUS_API_KEY
 
-    resp = requests.get(url, params=params, timeout=30)
+    resp = requests.get(url, params=params, timeout=120)
     resp.raise_for_status()
     return resp.json()
 
