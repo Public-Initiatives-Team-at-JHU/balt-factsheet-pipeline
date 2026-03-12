@@ -341,6 +341,28 @@ AVG_HOUSEHOLD_SIZE_METRIC = Metric(
 )
 
 
+POPULATION_PEP_METRIC = Metric(
+    id="total_population_pep",
+    name="Total Population (Official Estimate)",
+    description=(
+        "Official Census Bureau annual population estimate (July 1). "
+        "Model-based, combining Census count with births, deaths, and migration data."
+    ),
+    compute=lambda row: row["population_estimate"],
+    source_dataset="pep_population",
+    source_table="PEP",
+    formula_description="Direct read of POPESTIMATE (July 1 annual estimate).",
+    source_name="Census Population Estimates Program",
+    source_url="https://www.census.gov/programs-surveys/popest.html",
+    unit="count",
+    update_frequency="annual",
+    caveats=(
+        "Covers 2020–present (2020-base series). "
+        "Earlier years use a separate pre-2020 series. "
+        "Estimates are revised in subsequent vintage years."
+    ),
+)
+
 POVERTY_RATE_METRIC = Metric(
     id="poverty_rate",
     name="Poverty Rate",
@@ -415,16 +437,153 @@ VACANCY_RATE_METRIC = Metric(
 )
 
 
+_RACE_URL = "https://data.census.gov/table/ACSDT1Y2023.B03002"
+_RACE_SOURCE = "ACS 1-Year Estimates"
+_RACE_CAVEATS = (
+    "Race/ethnicity categories follow Census definitions. "
+    "Hispanic/Latino is an origin category that spans all races; "
+    "all non-Hispanic categories are mutually exclusive. "
+    "AIAN, NHPI, other race, and two-or-more-races groups are small "
+    "in Baltimore and have higher sampling error."
+)
+
+
+def _race_pct(numerator_col: str):
+    """Return a compute function for % of total population."""
+    def _compute(row):
+        total = row["total_population"]
+        if total and total > 0:
+            return row[numerator_col] / total * 100
+        return None
+    return _compute
+
+
+PCT_WHITE_METRIC = Metric(
+    id="pct_white_non_hispanic",
+    name="White (Non-Hispanic) (%)",
+    description="Percentage of population identifying as White alone, non-Hispanic",
+    compute=_race_pct("white_non_hispanic"),
+    source_dataset="acs1_race_ethnicity",
+    source_table="B03002",
+    formula_description="B03002_003E / B03002_001E × 100",
+    source_name=_RACE_SOURCE,
+    source_url=_RACE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_RACE_CAVEATS,
+)
+
+PCT_BLACK_METRIC = Metric(
+    id="pct_black_non_hispanic",
+    name="Black or African American (Non-Hispanic) (%)",
+    description="Percentage of population identifying as Black or African American alone, non-Hispanic",
+    compute=_race_pct("black_non_hispanic"),
+    source_dataset="acs1_race_ethnicity",
+    source_table="B03002",
+    formula_description="B03002_004E / B03002_001E × 100",
+    source_name=_RACE_SOURCE,
+    source_url=_RACE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_RACE_CAVEATS,
+)
+
+PCT_HISPANIC_METRIC = Metric(
+    id="pct_hispanic_latino",
+    name="Hispanic or Latino (%)",
+    description="Percentage of population identifying as Hispanic or Latino (of any race)",
+    compute=_race_pct("hispanic_latino"),
+    source_dataset="acs1_race_ethnicity",
+    source_table="B03002",
+    formula_description="B03002_012E / B03002_001E × 100",
+    source_name=_RACE_SOURCE,
+    source_url=_RACE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_RACE_CAVEATS,
+)
+
+PCT_ASIAN_METRIC = Metric(
+    id="pct_asian_non_hispanic",
+    name="Asian (Non-Hispanic) (%)",
+    description="Percentage of population identifying as Asian alone, non-Hispanic",
+    compute=_race_pct("asian_non_hispanic"),
+    source_dataset="acs1_race_ethnicity",
+    source_table="B03002",
+    formula_description="B03002_006E / B03002_001E × 100",
+    source_name=_RACE_SOURCE,
+    source_url=_RACE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_RACE_CAVEATS,
+)
+
+PCT_TWO_OR_MORE_METRIC = Metric(
+    id="pct_two_or_more_races",
+    name="Two or More Races (Non-Hispanic) (%)",
+    description="Percentage of population identifying as two or more races, non-Hispanic",
+    compute=_race_pct("two_or_more_non_hispanic"),
+    source_dataset="acs1_race_ethnicity",
+    source_table="B03002",
+    formula_description="B03002_009E / B03002_001E × 100",
+    source_name=_RACE_SOURCE,
+    source_url=_RACE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_RACE_CAVEATS,
+)
+
+PCT_OTHER_RACE_METRIC = Metric(
+    id="pct_other_race_non_hispanic",
+    name="Other Race (Non-Hispanic) (%)",
+    description=(
+        "Percentage of population identifying as AIAN, NHPI, some other race, "
+        "or two or more races — all non-Hispanic. Grouped due to small cell sizes."
+    ),
+    compute=lambda row: (
+        (row["aian_non_hispanic"] + row["nhpi_non_hispanic"]
+         + row["other_race_non_hispanic"] + row["two_or_more_non_hispanic"])
+        / row["total_population"] * 100
+        if row["total_population"] and row["total_population"] > 0
+        else None
+    ),
+    source_dataset="acs1_race_ethnicity",
+    source_table="B03002",
+    formula_description=(
+        "(B03002_005E + B03002_007E + B03002_008E + B03002_009E) / B03002_001E × 100. "
+        "Combines AIAN, NHPI, other race, and two-or-more-races (all non-Hispanic)."
+    ),
+    source_name=_RACE_SOURCE,
+    source_url=_RACE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_RACE_CAVEATS,
+)
+
+
 ALL_FACTSHEET_METRICS = [
-    TOTAL_POPULATION_METRIC,
+    # Population
+    TOTAL_POPULATION_METRIC,       # ACS — long trend 2005–present
+    POPULATION_PEP_METRIC,         # PEP — authoritative official estimate 2020–present
+    # Economic
     MEDIAN_HOUSEHOLD_INCOME_METRIC,
-    UNEMPLOYMENT_RATE_BLS_METRIC,  # Switched from ACS to BLS LAUS (authoritative source)
+    UNEMPLOYMENT_RATE_BLS_METRIC,
     POVERTY_RATE_METRIC,
+    # Education
     BACHELORS_PLUS_METRIC,
     LESS_THAN_HS_METRIC,
+    # Housing
     MORTGAGE_COST_BURDEN_METRIC,
     RENT_COST_BURDEN_METRIC,
     HOMEOWNERSHIP_RATE_METRIC,
     VACANCY_RATE_METRIC,
+    # Demographics
+    PCT_WHITE_METRIC,
+    PCT_BLACK_METRIC,
+    PCT_HISPANIC_METRIC,
+    PCT_ASIAN_METRIC,
+    PCT_TWO_OR_MORE_METRIC,
+    PCT_OTHER_RACE_METRIC,
+    # Household
     AVG_HOUSEHOLD_SIZE_METRIC,
 ]

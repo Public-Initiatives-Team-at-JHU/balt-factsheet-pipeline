@@ -16,9 +16,11 @@ import time
 
 from src.pipelines.datasets import (
     ALL_FACTSHEET_DATASETS,
+    POPULATION_PEP,
     UNEMPLOYMENT_LAUS,
     pull_and_clean_bls_dataset,
     pull_and_clean_dataset,
+    pull_and_clean_pep_dataset,
 )
 from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
@@ -47,6 +49,17 @@ def run() -> dict:
         df = pull_and_clean_dataset(dataset_def, save=True)
         datasets[dataset_def.file_name] = df
         print(f"{len(df)} rows")
+
+    # Pull Census PEP population data
+    print("\n--- Pulling Census PEP population data ---")
+    print(f"  Pulling {POPULATION_PEP.title} (vintage {POPULATION_PEP.vintage_year})...", end=" ")
+    try:
+        pep_df = pull_and_clean_pep_dataset(POPULATION_PEP, save=True)
+        datasets[POPULATION_PEP.file_name] = pep_df
+        print(f"{len(pep_df)} rows")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        print("  WARNING: Continuing without PEP population data")
 
     # Pull BLS LAUS unemployment data
     print("\n--- Pulling BLS LAUS unemployment data ---")

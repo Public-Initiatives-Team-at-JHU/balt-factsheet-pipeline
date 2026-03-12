@@ -17,7 +17,8 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from src.pipelines.census_acs import fetch_acs_city
-from src.utils.config import ACS1_EARLIEST_YEAR, acs1_years
+from src.pipelines.census_pop import fetch_pep_population, parse_pep_year
+from src.utils.config import ACS1_EARLIEST_YEAR, PEP_LATEST_VINTAGE, PEP_START_YEAR, acs1_years
 from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
 
 # Census uses this sentinel for suppressed margins of error
@@ -331,6 +332,118 @@ def pull_and_clean_bls_dataset(
         save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
 
     return annual_df
+
+
+# ── Census PEP Dataset ────────────────────────────────────────────────────────
+
+
+@dataclass
+class PEPDataset:
+    """Declarative definition for a Census PEP population dataset.
+
+    PEP differs from ACS: a single vintage call returns all years via
+    DATE_CODE, so there's no per-year loop. We always pull the latest
+    vintage and extract each year's July 1 estimate.
+    """
+
+    name: str           # Short name for file naming
+    title: str          # Human-readable title
+    description: str    # What this dataset covers
+    vintage_year: int = PEP_LATEST_VINTAGE
+
+    @property
+    def file_name(self) -> str:
+        """Dataset file name without extension. Prefixed with pep_."""
+        return f"pep_{self.name}"
+
+    @property
+    def data_dictionary_rows(self) -> list:
+        return [
+            {
+                "column": "year",
+                "description": "Calendar year of the July 1 population estimate",
+                "census_variable": "DATE_DESC",
+                "notes": "Parsed from DATE_DESC. Excludes April 2020 Census base.",
+            },
+            {
+                "column": "geography",
+                "description": "Geographic area name",
+                "census_variable": "NAME",
+                "notes": "Baltimore City",
+            },
+            {
+                "column": "population_estimate",
+                "description": "Official Census Bureau annual population estimate (July 1)",
+                "census_variable": "POPESTIMATE",
+                "notes": (
+                    "Model-based estimate combining Census count with births, "
+                    "deaths, and net migration. More accurate than ACS for point-in-time "
+                    "population. Revised in subsequent vintages."
+                ),
+            },
+        ]
+
+
+def pull_and_clean_pep_dataset(
+    dataset: PEPDataset,
+    save: bool = True,
+) -> pd.DataFrame:
+    """Fetch Census PEP population data, clean it, and optionally save to disk.
+
+    Process:
+    1. Calls the PEP API for the latest vintage (returns all years in one call)
+    2. Saves the raw JSON response (Layer 1)
+    3. Filters to July 1 annual estimates (excludes April 2020 Census base)
+    4. Parses year from DATE_DESC
+    5. Assembles into a clean DataFrame
+
+    Args:
+        dataset: PEPDataset definition
+        save: If True, save the clean CSV and data dictionary
+
+    Returns:
+        Clean DataFrame with columns: year, geography, population_estimate
+    """
+    raw = fetch_pep_population(dataset.vintage_year)
+
+    # Layer 1: save raw API response
+    save_raw_response(
+        raw, "pep", "population", f"{PEP_START_YEAR}-{dataset.vintage_year}", geo="city"
+    )
+
+    # raw[0] = headers, raw[1:] = one row per DATE_CODE
+    headers = raw[0]
+    col = {h: i for i, h in enumerate(headers)}
+
+    rows = []
+    for row in raw[1:]:
+        date_desc = row[col["DATE_DESC"]]
+        year = parse_pep_year(date_desc)
+
+        # Skip the April 2020 Census base (not a July 1 estimate)
+        if year is None or "estimates base" in date_desc.lower():
+            continue
+
+        # Only include years within our intended range
+        if year < PEP_START_YEAR:
+            continue
+
+        pop = _to_numeric(row[col["POPESTIMATE"]])
+        name = row[col["NAME"]]
+
+        rows.append({
+            "year": year,
+            "geography": name,
+            "population_estimate": pop,
+        })
+
+    df = pd.DataFrame(rows).sort_values("year").reset_index(drop=True)
+
+    if save:
+        save_dataset(df, dataset.file_name)
+        save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
+
+    return df
 
 
 # ── Dataset Definitions ──────────────────────────────────────────────────────
@@ -741,6 +854,90 @@ HOUSING_OCCUPANCY = ACSDataset(
     ],
 )
 
+RACE_ETHNICITY = ACSDataset(
+    table_id="B03002",
+    name="race_ethnicity",
+    title="Race and Hispanic Origin",
+    description=(
+        "Population by race and Hispanic or Latino origin. "
+        "Uses the Hispanic-origin-by-race classification: non-Hispanic categories "
+        "are mutually exclusive, and Hispanic/Latino spans all races."
+    ),
+    columns=[
+        ColumnDef(
+            census_variable="B03002_001E",
+            name="total_population",
+            description="Total population",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_003E",
+            name="white_non_hispanic",
+            description="White alone, not Hispanic or Latino",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_004E",
+            name="black_non_hispanic",
+            description="Black or African American alone, not Hispanic or Latino",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_005E",
+            name="aian_non_hispanic",
+            description="American Indian and Alaska Native alone, not Hispanic or Latino",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_006E",
+            name="asian_non_hispanic",
+            description="Asian alone, not Hispanic or Latino",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_007E",
+            name="nhpi_non_hispanic",
+            description="Native Hawaiian and Other Pacific Islander alone, not Hispanic or Latino",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_008E",
+            name="other_race_non_hispanic",
+            description="Some other race alone, not Hispanic or Latino",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_009E",
+            name="two_or_more_non_hispanic",
+            description="Two or more races, not Hispanic or Latino",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_012E",
+            name="hispanic_latino",
+            description="Hispanic or Latino (of any race)",
+            universe="Total population",
+        ),
+        ColumnDef(
+            census_variable="B03002_001M",
+            name="total_population_moe",
+            description="Margin of error for total population",
+            universe="Total population",
+        ),
+    ],
+)
+
+# PEP official annual population estimate
+POPULATION_PEP = PEPDataset(
+    name="population",
+    title="Total Population (Census PEP)",
+    description=(
+        "Official annual population estimate from the Census Population Estimates "
+        "Program. More accurate than ACS for year-to-year tracking of total population."
+    ),
+    vintage_year=PEP_LATEST_VINTAGE,
+)
+
 # BLS LAUS unemployment data
 UNEMPLOYMENT_LAUS = BLSDataset(
     series_id="LAUCN245100000000003",  # County-level, not seasonally adjusted
@@ -765,4 +962,5 @@ ALL_FACTSHEET_DATASETS.extend([
     POVERTY_STATUS,
     HOUSING_TENURE,
     HOUSING_OCCUPANCY,
+    RACE_ETHNICITY,
 ])
