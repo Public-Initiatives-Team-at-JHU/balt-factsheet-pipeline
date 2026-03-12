@@ -196,6 +196,28 @@ UNEMPLOYMENT_RATE_METRIC = Metric(
     ),
 )
 
+UNEMPLOYMENT_RATE_BLS_METRIC = Metric(
+    id="unemployment_rate_bls",
+    name="Unemployment Rate",
+    description="Percentage of civilian labor force that is unemployed (annual average)",
+    compute=lambda row: row["annual_unemployment_rate"],
+    source_dataset="bls_laus_unemployment",
+    source_table="LAUS",
+    formula_description=(
+        "Annual average of BLS LAUS monthly unemployment rates. "
+        "Series ID: LAUCN245100000000003 (Baltimore City, not seasonally adjusted)."
+    ),
+    source_name="BLS Local Area Unemployment Statistics",
+    source_url="https://www.bls.gov/lau/",
+    unit="percent",
+    update_frequency="monthly (aggregated to annual)",
+    caveats=(
+        "Monthly estimates are not seasonally adjusted. "
+        "Annual value is the arithmetic mean of 12 monthly observations. "
+        "BLS LAUS is the authoritative source for unemployment rates."
+    ),
+)
+
 BACHELORS_PLUS_METRIC = Metric(
     id="bachelors_degree_plus",
     name="Bachelor's Degree or Higher (%)",
@@ -319,13 +341,90 @@ AVG_HOUSEHOLD_SIZE_METRIC = Metric(
 )
 
 
+POVERTY_RATE_METRIC = Metric(
+    id="poverty_rate",
+    name="Poverty Rate",
+    description="Percentage of residents with income below the federal poverty level",
+    compute=lambda row: (
+        row["below_poverty"] / row["poverty_universe"] * 100
+        if row["poverty_universe"] and row["poverty_universe"] > 0
+        else None
+    ),
+    source_dataset="acs1_poverty_status",
+    source_table="B17001",
+    formula_description=(
+        "B17001_002E (below poverty) / B17001_001E (poverty universe) × 100. "
+        "Universe excludes institutionalized people and others for whom "
+        "poverty status is not determined."
+    ),
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B17001",
+    unit="percent",
+    update_frequency="annual",
+    caveats=(
+        "Uses the federal poverty thresholds, which are widely considered to "
+        "underestimate true economic hardship. Universe excludes ~2% of population "
+        "for whom poverty status is not determined."
+    ),
+)
+
+HOMEOWNERSHIP_RATE_METRIC = Metric(
+    id="homeownership_rate",
+    name="Homeownership Rate",
+    description="Percentage of occupied housing units that are owner-occupied",
+    compute=lambda row: (
+        row["owner_occupied"] / row["total_occupied_units"] * 100
+        if row["total_occupied_units"] and row["total_occupied_units"] > 0
+        else None
+    ),
+    source_dataset="acs1_housing_tenure",
+    source_table="B25003",
+    formula_description=(
+        "B25003_002E (owner-occupied) / B25003_001E (total occupied units) × 100."
+    ),
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B25003",
+    unit="percent",
+    update_frequency="annual",
+)
+
+VACANCY_RATE_METRIC = Metric(
+    id="housing_vacancy_rate",
+    name="Housing Vacancy Rate",
+    description="Percentage of housing units that are vacant",
+    compute=lambda row: (
+        row["vacant_units"] / row["total_housing_units"] * 100
+        if row["total_housing_units"] and row["total_housing_units"] > 0
+        else None
+    ),
+    source_dataset="acs1_housing_occupancy",
+    source_table="B25002",
+    formula_description=(
+        "B25002_003E (vacant units) / B25002_001E (total housing units) × 100."
+    ),
+    source_name="ACS 1-Year Estimates",
+    source_url="https://data.census.gov/table/ACSDT1Y2023.B25002",
+    unit="percent",
+    update_frequency="annual",
+    caveats=(
+        "ACS vacancy counts all vacant units including seasonal/recreational. "
+        "Does not distinguish between structurally vacant (blight) and "
+        "temporarily unoccupied units. For Baltimore's blight context, "
+        "Open Baltimore's DHCD vacant building registry is more precise."
+    ),
+)
+
+
 ALL_FACTSHEET_METRICS = [
     TOTAL_POPULATION_METRIC,
     MEDIAN_HOUSEHOLD_INCOME_METRIC,
-    UNEMPLOYMENT_RATE_METRIC,
+    UNEMPLOYMENT_RATE_BLS_METRIC,  # Switched from ACS to BLS LAUS (authoritative source)
+    POVERTY_RATE_METRIC,
     BACHELORS_PLUS_METRIC,
     LESS_THAN_HS_METRIC,
     MORTGAGE_COST_BURDEN_METRIC,
     RENT_COST_BURDEN_METRIC,
+    HOMEOWNERSHIP_RATE_METRIC,
+    VACANCY_RATE_METRIC,
     AVG_HOUSEHOLD_SIZE_METRIC,
 ]

@@ -14,7 +14,12 @@ from __future__ import annotations
 import sys
 import time
 
-from src.pipelines.datasets import ALL_FACTSHEET_DATASETS, pull_and_clean_dataset
+from src.pipelines.datasets import (
+    ALL_FACTSHEET_DATASETS,
+    UNEMPLOYMENT_LAUS,
+    pull_and_clean_bls_dataset,
+    pull_and_clean_dataset,
+)
 from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
     build_methodology_table,
@@ -22,7 +27,6 @@ from src.pipelines.metrics import (
 )
 from src.utils.io import save_processed
 from src.utils.validation import validate_all
-
 
 def run() -> dict:
     """Execute the full fact sheet pipeline.
@@ -43,6 +47,18 @@ def run() -> dict:
         df = pull_and_clean_dataset(dataset_def, save=True)
         datasets[dataset_def.file_name] = df
         print(f"{len(df)} rows")
+
+    # Pull BLS LAUS unemployment data
+    print("\n--- Pulling BLS LAUS unemployment data ---")
+    print(f"  Pulling {UNEMPLOYMENT_LAUS.title} ({UNEMPLOYMENT_LAUS.series_id})...", end=" ")
+    try:
+        bls_df = pull_and_clean_bls_dataset(UNEMPLOYMENT_LAUS, save=True)
+        datasets[UNEMPLOYMENT_LAUS.file_name] = bls_df
+        print(f"{len(bls_df)} rows")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        print("  WARNING: Continuing without BLS unemployment data")
+        # Pipeline continues with other datasets
 
     # ── Layer 3: Compute metrics ─────────────────────────────────────────────
     print("\n--- Computing dashboard metrics ---")

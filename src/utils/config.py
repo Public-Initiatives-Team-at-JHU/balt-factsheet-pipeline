@@ -51,7 +51,7 @@ CENSUS_MAX_VARIABLES_PER_CALL = 50
 
 # ── BLS API ──────────────────────────────────────────────────────────────────
 BLS_API_BASE = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
-BLS_LAUS_SERIES = "LAUST245100000000003"  # Baltimore City unemployment rate
+BLS_LAUS_SERIES = "LAUCN245100000000003"  # Baltimore City unemployment rate (county, NSA)
 BLS_API_KEY = os.environ.get("BLS_API_KEY", "")
 
 # ── Open Baltimore (Socrata) ─────────────────────────────────────────────────

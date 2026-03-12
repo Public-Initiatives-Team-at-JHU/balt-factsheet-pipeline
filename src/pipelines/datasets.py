@@ -180,6 +180,159 @@ def _to_numeric(value):
             return None
 
 
+# ── BLS LAUS Dataset ─────────────────────────────────────────────────────────
+
+
+@dataclass
+class BLSDataset:
+    """Declarative definition for a BLS LAUS dataset.
+
+    Similar to ACSDataset but for BLS Local Area Unemployment Statistics.
+    """
+
+    series_id: str      # e.g. "LAUST245100000000003"
+    name: str           # Short name for file naming
+    title: str          # Human-readable title
+    description: str    # What this dataset covers
+    measure: str        # What this measures (e.g., "unemployment_rate")
+    start_year: int = 2005
+
+    @property
+    def file_name(self) -> str:
+        """Dataset file name without extension. Prefixed with bls_."""
+        return f"bls_{self.name}"
+
+    @property
+    def data_dictionary_rows(self) -> list:
+        """Data dictionary entries for all columns."""
+        return [
+            {
+                "column": "year",
+                "description": "Calendar year",
+                "bls_series": self.series_id,
+                "notes": "",
+            },
+            {
+                "column": "geography",
+                "description": "Geographic area name",
+                "bls_series": "",
+                "notes": "Baltimore City for city-level data",
+            },
+            {
+                "column": "month",
+                "description": "Month number (1-12)",
+                "bls_series": "",
+                "notes": "Calendar month (1=January)",
+            },
+            {
+                "column": f"monthly_{self.measure}",
+                "description": f"Monthly {self.measure.replace('_', ' ')} (%)",
+                "bls_series": self.series_id,
+                "notes": "Not seasonally adjusted",
+            },
+            {
+                "column": f"annual_{self.measure}",
+                "description": f"Annual average {self.measure.replace('_', ' ')} (%)",
+                "bls_series": "",
+                "notes": "Mean of 12 monthly observations",
+            },
+        ]
+
+
+def pull_and_clean_bls_dataset(
+    dataset: BLSDataset,
+    save: bool = True,
+) -> pd.DataFrame:
+    """Fetch BLS LAUS data, clean it, and optionally save to disk.
+
+    Process:
+    1. Calls the BLS API for monthly data
+    2. Saves the raw JSON response (Layer 1)
+    3. Parses monthly data points
+    4. Converts string values to numeric
+    5. Computes annual averages (mean of 12 monthly values)
+    6. Assembles into a DataFrame with both monthly and annual data
+
+    Args:
+        dataset: BLSDataset definition specifying what to pull
+        save: If True, save the clean CSV and data dictionary
+
+    Returns:
+        Clean DataFrame with columns: year, geography, month,
+        monthly_{measure}, annual_{measure}
+    """
+    from src.pipelines.bls import fetch_bls_laus
+    from datetime import datetime
+
+    # BLS publishes data through current month, use current year
+    end_year = datetime.now().year
+    raw = fetch_bls_laus(dataset.series_id, dataset.start_year, end_year)
+
+    # Layer 1: save raw API response
+    save_raw_response(
+        raw, "bls", "LAUS", f"{dataset.start_year}-{end_year}", geo="city"
+    )
+
+    # Parse monthly data points
+    series_data = raw["Results"]["series"][0]["data"]
+
+    rows = []
+    for point in series_data:
+        year = int(point["year"])
+        period = point["period"]
+
+        # Skip annual averages (period="M13") — we compute our own
+        if period == "M13":
+            continue
+
+        # Extract month number from period (e.g. "M01" → 1)
+        month = int(period.replace("M", ""))
+
+        # BLS returns values as strings
+        value = _to_numeric(point["value"])
+
+        rows.append({
+            "year": year,
+            "geography": "Baltimore City",
+            "month": month,
+            f"monthly_{dataset.measure}": value,
+        })
+
+    monthly_df = pd.DataFrame(rows)
+
+    # Compute annual averages (mean of 12 monthly values per year)
+    annual_df = (
+        monthly_df.groupby("year")[f"monthly_{dataset.measure}"]
+        .mean()
+        .reset_index()
+        .rename(columns={f"monthly_{dataset.measure}": f"annual_{dataset.measure}"})
+    )
+
+    # Add geography column
+    annual_df["geography"] = "Baltimore City"
+
+    # Reorder columns
+    annual_df = annual_df[["year", "geography", f"annual_{dataset.measure}"]]
+
+    # Sort by year
+    annual_df = annual_df.sort_values("year").reset_index(drop=True)
+
+    if save:
+        # Save annual aggregated data (for metric computation)
+        save_dataset(annual_df, dataset.file_name)
+        # Also save monthly data with _monthly suffix (for reference/future use)
+        monthly_full = monthly_df.merge(
+            annual_df[["year", f"annual_{dataset.measure}"]],
+            on="year",
+            how="left"
+        ).sort_values(["year", "month"])
+        save_dataset(monthly_full, f"{dataset.file_name}_monthly")
+        # Save data dictionary
+        save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
+
+    return annual_df
+
+
 # ── Dataset Definitions ──────────────────────────────────────────────────────
 # Each definition fully specifies a clean dataset.
 # Adding a new dataset = adding a new instance here.
@@ -480,6 +633,127 @@ HOUSEHOLD_SIZE = ACSDataset(
     ],
 )
 
+POVERTY_STATUS = ACSDataset(
+    table_id="B17001",
+    name="poverty_status",
+    title="Poverty Status",
+    description=(
+        "Poverty status in the past 12 months for the population for whom "
+        "poverty status is determined. Used to compute the overall poverty rate."
+    ),
+    columns=[
+        ColumnDef(
+            census_variable="B17001_001E",
+            name="poverty_universe",
+            description="Total population for whom poverty status is determined",
+            universe="Population for whom poverty status is determined",
+        ),
+        ColumnDef(
+            census_variable="B17001_002E",
+            name="below_poverty",
+            description="Population with income below the poverty level in the past 12 months",
+            universe="Population for whom poverty status is determined",
+        ),
+        ColumnDef(
+            census_variable="B17001_001M",
+            name="poverty_universe_moe",
+            description="Margin of error for poverty universe",
+            universe="Population for whom poverty status is determined",
+        ),
+        ColumnDef(
+            census_variable="B17001_002M",
+            name="below_poverty_moe",
+            description="Margin of error for population below poverty",
+            universe="Population for whom poverty status is determined",
+        ),
+    ],
+)
+
+HOUSING_TENURE = ACSDataset(
+    table_id="B25003",
+    name="housing_tenure",
+    title="Housing Tenure",
+    description=(
+        "Tenure of occupied housing units — owner-occupied vs. renter-occupied. "
+        "Used to compute homeownership rate."
+    ),
+    columns=[
+        ColumnDef(
+            census_variable="B25003_001E",
+            name="total_occupied_units",
+            description="Total occupied housing units",
+            universe="Occupied housing units",
+        ),
+        ColumnDef(
+            census_variable="B25003_002E",
+            name="owner_occupied",
+            description="Owner-occupied housing units",
+            universe="Occupied housing units",
+        ),
+        ColumnDef(
+            census_variable="B25003_003E",
+            name="renter_occupied",
+            description="Renter-occupied housing units",
+            universe="Occupied housing units",
+        ),
+        ColumnDef(
+            census_variable="B25003_001M",
+            name="total_occupied_units_moe",
+            description="Margin of error for total occupied units",
+            universe="Occupied housing units",
+        ),
+    ],
+)
+
+HOUSING_OCCUPANCY = ACSDataset(
+    table_id="B25002",
+    name="housing_occupancy",
+    title="Housing Occupancy",
+    description=(
+        "Occupancy status of all housing units — occupied vs. vacant. "
+        "Used to compute the housing vacancy rate."
+    ),
+    columns=[
+        ColumnDef(
+            census_variable="B25002_001E",
+            name="total_housing_units",
+            description="Total housing units",
+            universe="Housing units",
+        ),
+        ColumnDef(
+            census_variable="B25002_002E",
+            name="occupied_units",
+            description="Occupied housing units",
+            universe="Housing units",
+        ),
+        ColumnDef(
+            census_variable="B25002_003E",
+            name="vacant_units",
+            description="Vacant housing units",
+            universe="Housing units",
+        ),
+        ColumnDef(
+            census_variable="B25002_001M",
+            name="total_housing_units_moe",
+            description="Margin of error for total housing units",
+            universe="Housing units",
+        ),
+    ],
+)
+
+# BLS LAUS unemployment data
+UNEMPLOYMENT_LAUS = BLSDataset(
+    series_id="LAUCN245100000000003",  # County-level, not seasonally adjusted
+    name="laus_unemployment",
+    title="Unemployment Rate (BLS LAUS)",
+    description=(
+        "Monthly unemployment rate from BLS Local Area Unemployment Statistics. "
+        "Annual values are averages of 12 monthly observations."
+    ),
+    measure="unemployment_rate",
+    start_year=2005,
+)
+
 ALL_FACTSHEET_DATASETS.extend([
     TOTAL_POPULATION,
     MEDIAN_HOUSEHOLD_INCOME,
@@ -488,4 +762,7 @@ ALL_FACTSHEET_DATASETS.extend([
     MORTGAGE_COSTS,
     RENT_COSTS,
     HOUSEHOLD_SIZE,
+    POVERTY_STATUS,
+    HOUSING_TENURE,
+    HOUSING_OCCUPANCY,
 ])
