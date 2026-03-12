@@ -601,8 +601,7 @@ PCT_OTHER_RACE_METRIC = Metric(
 
 ALL_FACTSHEET_METRICS = [
     # Population
-    TOTAL_POPULATION_METRIC,       # ACS — long trend 2005–present
-    POPULATION_PEP_METRIC,         # PEP — authoritative official estimate 2020–present
+    TOTAL_POPULATION_METRIC,       # ACS 1-Year — long trend 2005–present
     # Economic
     MEDIAN_HOUSEHOLD_INCOME_METRIC,
     UNEMPLOYMENT_RATE_BLS_METRIC,
