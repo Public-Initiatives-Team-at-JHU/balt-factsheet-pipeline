@@ -26,6 +26,7 @@ from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
     build_methodology_table,
     compute_all_metrics,
+    pivot_to_wide,
 )
 from src.utils.io import save_processed
 from src.utils.validation import validate_all
@@ -75,31 +76,39 @@ def run() -> dict:
 
     # ── Layer 3: Compute metrics ─────────────────────────────────────────────
     print("\n--- Computing dashboard metrics ---")
-    factsheet = compute_all_metrics(ALL_FACTSHEET_METRICS, datasets)
-    save_processed(factsheet, "baltimore_factsheet")
-    print(f"  {len(factsheet)} metric rows saved to baltimore_factsheet.csv")
+    long_df = compute_all_metrics(ALL_FACTSHEET_METRICS, datasets)
 
-    # ── Methodology table ────────────────────────────────────────────────────
-    methodology = build_methodology_table(ALL_FACTSHEET_METRICS)
-    save_processed(methodology, "methodology")
-    print(f"  {len(methodology)} methodology rows saved to methodology.csv")
+    # Primary output: wide format — one row per year, one column per metric
+    wide_df = pivot_to_wide(long_df, ALL_FACTSHEET_METRICS)
+    save_processed(wide_df, "baltimore_factsheet")
+    print(f"  {len(wide_df)} years × {len(wide_df.columns) - 1} metrics → baltimore_factsheet.csv")
+
+    # Secondary output: long format (useful for Power BI and programmatic use)
+    save_processed(long_df, "baltimore_factsheet_long")
+    print(f"  {len(long_df)} rows → baltimore_factsheet_long.csv")
+
+    # ── Metadata (metric definitions and sources) ────────────────────────────
+    metadata = build_methodology_table(ALL_FACTSHEET_METRICS)
+    save_processed(metadata, "baltimore_factsheet_metadata")
+    print(f"  {len(metadata)} metric definitions → baltimore_factsheet_metadata.csv")
 
     # ── Validation ───────────────────────────────────────────────────────────
     print("\n--- Validating outputs ---")
-    validation = validate_all(datasets, factsheet)
+    validation = validate_all(datasets, long_df)
     print(f"  {validation.summary()}")
 
     elapsed = time.time() - start
     print(f"\n--- Done in {elapsed:.1f}s ---")
     print(f"  Datasets: {len(datasets)}")
     print(f"  Metrics:  {len(ALL_FACTSHEET_METRICS)}")
-    print(f"  Years:    {factsheet['year'].nunique()}")
-    print(f"  Total output rows: {len(factsheet)}")
+    print(f"  Years (wide):  {len(wide_df)}")
+    print(f"  Columns (wide): {len(wide_df.columns)}")
 
     return {
         "datasets_count": len(datasets),
         "metrics_count": len(ALL_FACTSHEET_METRICS),
-        "rows": len(factsheet),
+        "years": len(wide_df),
+        "columns": len(wide_df.columns),
         "elapsed_seconds": round(elapsed, 1),
         "validation_ok": validation.ok,
         "validation_errors": validation.error_count,

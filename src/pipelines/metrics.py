@@ -99,6 +99,44 @@ def compute_all_metrics(
     return pd.DataFrame(rows, columns=DASHBOARD_COLUMNS)
 
 
+def pivot_to_wide(long_df: pd.DataFrame, metrics: list) -> pd.DataFrame:
+    """Pivot long-format fact sheet to wide format for Excel/SharePoint.
+
+    Args:
+        long_df: Long-format DataFrame from compute_all_metrics()
+        metrics: Ordered list of Metric definitions (sets column order)
+
+    Returns:
+        Wide DataFrame — one row per year, one column per metric.
+        Column names are human-readable indicator names.
+        NaN where a metric has no data for a given year (e.g. ACS missing 2020,
+        PEP only starting 2020).
+    """
+    # Pivot on indicator_id (stable), then rename to human-readable names
+    wide = long_df.pivot_table(
+        index="year",
+        columns="indicator_id",
+        values="value",
+        aggfunc="first",
+    ).reset_index()
+
+    # Rename columns from indicator_id → indicator_name
+    id_to_name = {m.id: m.name for m in metrics}
+    wide = wide.rename(columns=id_to_name)
+
+    # Ensure all metrics appear even when every value for a metric is None
+    # (pivot_table drops all-NaN columns, but we want explicit NaN columns)
+    for m in metrics:
+        if m.name not in wide.columns:
+            wide[m.name] = float("nan")
+
+    # Enforce column order: year first, then metrics in definition order
+    ordered_names = [m.name for m in metrics]
+    wide = wide[["year"] + ordered_names]
+
+    return wide.sort_values("year").reset_index(drop=True)
+
+
 def build_methodology_table(metrics: list) -> pd.DataFrame:
     """Generate the methodology documentation table.
 
