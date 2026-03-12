@@ -599,6 +599,94 @@ PCT_OTHER_RACE_METRIC = Metric(
 )
 
 
+_BPD_CAVEATS = (
+    "Source: BPD Part 1 Victim Based Crime Data (wsfq-mvij). "
+    "⚠️ Data quality issues from May 2021 due to BPD Records Management System "
+    "transition — 2021 and 2022 annual totals are likely understated. "
+    "Rate denominator is ACS 1-Year total population estimate."
+)
+_BPD_URL = "https://data.baltimorecity.gov/Public-Safety/BPD-Part-1-Victim-Based-Crime-Data/wsfq-mvij"
+_BPD_SOURCE = "BPD Part 1 Victim Based Crime Data / Open Baltimore"
+
+
+def _crime_rate(col: str):
+    """Return a compute function for a pre-computed per-1,000 crime rate."""
+    def _compute(row):
+        val = row.get(col)
+        return float(val) if val is not None and not (isinstance(val, float) and val != val) else None
+    return _compute
+
+
+PART1_CRIME_RATE_METRIC = Metric(
+    id="part1_crime_rate_per_1k",
+    name="Part 1 Crime Rate (per 1,000)",
+    description="Total FBI UCR Part 1 crimes per 1,000 residents",
+    compute=_crime_rate("part1_rate_per_1k"),
+    source_dataset="ob_crime_rates",
+    source_table="BPD Part 1 (wsfq-mvij)",
+    formula_description=(
+        "Annual Part 1 crime incident count / ACS total population × 1,000. "
+        "Part 1 crimes = violent + property (see violent/property metrics)."
+    ),
+    source_name=_BPD_SOURCE,
+    source_url=_BPD_URL,
+    unit="rate per 1,000",
+    update_frequency="annual",
+    caveats=_BPD_CAVEATS,
+)
+
+VIOLENT_CRIME_RATE_METRIC = Metric(
+    id="violent_crime_rate_per_1k",
+    name="Violent Crime Rate (per 1,000)",
+    description="Violent crimes per 1,000 residents (homicide, rape, robbery, aggravated assault)",
+    compute=_crime_rate("violent_rate_per_1k"),
+    source_dataset="ob_crime_rates",
+    source_table="BPD Part 1 (wsfq-mvij)",
+    formula_description=(
+        "Annual violent crime count / ACS total population × 1,000. "
+        "Violent = HOMICIDE + RAPE + ROBBERY (all types) + AGG. ASSAULT + SHOOTING."
+    ),
+    source_name=_BPD_SOURCE,
+    source_url=_BPD_URL,
+    unit="rate per 1,000",
+    update_frequency="annual",
+    caveats=_BPD_CAVEATS,
+)
+
+PROPERTY_CRIME_RATE_METRIC = Metric(
+    id="property_crime_rate_per_1k",
+    name="Property Crime Rate (per 1,000)",
+    description="Property crimes per 1,000 residents (burglary, larceny, auto theft, arson)",
+    compute=_crime_rate("property_rate_per_1k"),
+    source_dataset="ob_crime_rates",
+    source_table="BPD Part 1 (wsfq-mvij)",
+    formula_description=(
+        "Annual property crime count / ACS total population × 1,000. "
+        "Property = BURGLARY + LARCENY + LARCENY FROM AUTO + AUTO THEFT + ARSON."
+    ),
+    source_name=_BPD_SOURCE,
+    source_url=_BPD_URL,
+    unit="rate per 1,000",
+    update_frequency="annual",
+    caveats=_BPD_CAVEATS,
+)
+
+HOMICIDE_COUNT_METRIC = Metric(
+    id="homicide_count",
+    name="Homicides (count)",
+    description="Total homicide incidents reported to BPD",
+    compute=lambda row: row.get("homicide_count"),
+    source_dataset="ob_crime_rates",
+    source_table="BPD Part 1 (wsfq-mvij)",
+    formula_description="Direct count of incidents where Description = 'HOMICIDE'.",
+    source_name=_BPD_SOURCE,
+    source_url=_BPD_URL,
+    unit="count",
+    update_frequency="annual",
+    caveats=_BPD_CAVEATS,
+)
+
+
 ALL_FACTSHEET_METRICS = [
     # Population
     TOTAL_POPULATION_METRIC,       # ACS 1-Year — long trend 2005–present
@@ -621,6 +709,11 @@ ALL_FACTSHEET_METRICS = [
     PCT_ASIAN_METRIC,
     PCT_TWO_OR_MORE_METRIC,
     PCT_OTHER_RACE_METRIC,
+    # Crime
+    PART1_CRIME_RATE_METRIC,
+    VIOLENT_CRIME_RATE_METRIC,
+    PROPERTY_CRIME_RATE_METRIC,
+    HOMICIDE_COUNT_METRIC,
     # Household
     AVG_HOUSEHOLD_SIZE_METRIC,
 ]

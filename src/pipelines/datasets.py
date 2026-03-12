@@ -16,9 +16,16 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+import numpy as np
+
 from src.pipelines.census_acs import fetch_acs_city
 from src.pipelines.census_pop import fetch_pep_population, parse_pep_year
-from src.utils.config import ACS1_EARLIEST_YEAR, PEP_LATEST_VINTAGE, PEP_START_YEAR, acs1_years
+from src.pipelines.open_baltimore import (
+    BPD_DATA_QUALITY_ISSUE_YEAR,
+    classify_crime,
+    fetch_crime_counts_by_year,
+)
+from src.utils.config import ACS1_EARLIEST_YEAR, ACS1_LATEST_YEAR, PEP_LATEST_VINTAGE, PEP_START_YEAR, acs1_years
 from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
 
 # Census uses this sentinel for suppressed margins of error
@@ -964,3 +971,151 @@ ALL_FACTSHEET_DATASETS.extend([
     HOUSING_OCCUPANCY,
     RACE_ETHNICITY,
 ])
+
+
+# ── Open Baltimore Dataset ────────────────────────────────────────────────────
+
+
+@dataclass
+class OpenBaltimoreDataset:
+    """Declarative definition for an Open Baltimore (Socrata) dataset.
+
+    Unlike ACS datasets (one API call per year, pre-aggregated),
+    Open Baltimore data is incident-level. The pull function queries
+    the Socrata API with SoQL aggregation to get annual counts, then
+    classifies crime types in pandas.
+    """
+
+    dataset_id: str     # 4x4 Socrata ID, e.g. "wsfq-mvij"
+    name: str           # Short name for file naming
+    title: str          # Human-readable title
+    description: str    # What this dataset covers
+    start_year: int = 2010
+
+    @property
+    def file_name(self) -> str:
+        return f"ob_{self.name}"
+
+    @property
+    def data_dictionary_rows(self) -> list:
+        return [
+            {"column": "year", "description": "Calendar year", "notes": ""},
+            {"column": "geography", "description": "Geographic area", "notes": "Baltimore City"},
+            {"column": "part1_count", "description": "Total Part 1 crime incidents", "notes": "FBI UCR Part 1 classification"},
+            {"column": "violent_count", "description": "Violent crime incidents", "notes": "Homicide, rape, robbery, aggravated assault, shooting"},
+            {"column": "property_count", "description": "Property crime incidents", "notes": "Burglary, larceny, auto theft, arson"},
+            {"column": "homicide_count", "description": "Homicide incidents", "notes": ""},
+            {
+                "column": "data_quality_flag",
+                "description": "Flag for known data quality issues",
+                "notes": (
+                    f"BPD transitioned Records Management Systems in May {BPD_DATA_QUALITY_ISSUE_YEAR}. "
+                    f"Annual totals for {BPD_DATA_QUALITY_ISSUE_YEAR}+ are likely understated."
+                ),
+            },
+        ]
+
+
+def pull_and_clean_ob_crime_dataset(
+    dataset: OpenBaltimoreDataset,
+    save: bool = True,
+) -> pd.DataFrame:
+    """Fetch Open Baltimore crime data, aggregate by year, and classify.
+
+    Process:
+    1. Query Socrata with SoQL aggregation (year + description → count)
+    2. Save raw aggregated response (Layer 1)
+    3. Parse year from ISO datetime string
+    4. Classify each description as violent / property
+    5. Sum to annual totals: part1, violent, property, homicide
+    6. Flag years with known data quality issues
+
+    Args:
+        dataset: OpenBaltimoreDataset definition
+        save: If True, save clean CSV and data dictionary
+
+    Returns:
+        Clean DataFrame: year, geography, part1_count, violent_count,
+        property_count, homicide_count, data_quality_flag
+    """
+    raw = fetch_crime_counts_by_year(
+        start_year=dataset.start_year,
+        end_year=ACS1_LATEST_YEAR,
+    )
+
+    # Layer 1: save raw aggregated response
+    save_raw_response(
+        raw, "open_baltimore", dataset.dataset_id,
+        f"{dataset.start_year}-{ACS1_LATEST_YEAR}", geo="city",
+    )
+
+    if not raw:
+        raise ValueError(f"No data returned from Open Baltimore dataset {dataset.dataset_id}")
+
+    # Parse and classify each row
+    records = []
+    for row in raw:
+        # crime_year comes back as "2020-01-01T00:00:00.000"
+        year_str = row.get("crime_year", "")
+        try:
+            year = int(year_str[:4])
+        except (ValueError, IndexError):
+            continue
+
+        desc = row.get("description", "").strip().upper()
+        count = int(row.get("count", 0))
+        category = classify_crime(desc)
+
+        records.append({
+            "year": year,
+            "description": desc,
+            "count": count,
+            "category": category,
+            "is_homicide": desc == "HOMICIDE",
+        })
+
+    if not records:
+        raise ValueError("Could not parse any crime records from API response")
+
+    detail_df = pd.DataFrame(records)
+
+    # Aggregate to annual totals
+    annual = (
+        detail_df.groupby("year")
+        .apply(lambda g: pd.Series({
+            "part1_count":    g.loc[g["category"].notna(), "count"].sum(),
+            "violent_count":  g.loc[g["category"] == "violent", "count"].sum(),
+            "property_count": g.loc[g["category"] == "property", "count"].sum(),
+            "homicide_count": g.loc[g["is_homicide"], "count"].sum(),
+        }), include_groups=False)
+        .reset_index()
+    )
+
+    annual["geography"] = "Baltimore City"
+    annual["data_quality_flag"] = annual["year"] >= BPD_DATA_QUALITY_ISSUE_YEAR
+
+    # Reorder columns
+    annual = annual[[
+        "year", "geography",
+        "part1_count", "violent_count", "property_count", "homicide_count",
+        "data_quality_flag",
+    ]].sort_values("year").reset_index(drop=True)
+
+    if save:
+        save_dataset(annual, dataset.file_name)
+        save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
+
+    return annual
+
+
+CRIME_PART1 = OpenBaltimoreDataset(
+    dataset_id="wsfq-mvij",
+    name="crime_part1",
+    title="BPD Part 1 Crime",
+    description=(
+        "Annual Part 1 crime counts from BPD Victim Based Crime Data. "
+        "Includes totals for all Part 1, violent, property, and homicide. "
+        "⚠️ Data quality issues exist from May 2021 due to BPD RMS transition."
+    ),
+    start_year=2010,
+)

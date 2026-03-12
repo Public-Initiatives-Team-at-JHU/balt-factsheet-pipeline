@@ -16,9 +16,11 @@ import time
 
 from src.pipelines.datasets import (
     ALL_FACTSHEET_DATASETS,
+    CRIME_PART1,
     UNEMPLOYMENT_LAUS,
     pull_and_clean_bls_dataset,
     pull_and_clean_dataset,
+    pull_and_clean_ob_crime_dataset,
 )
 from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
@@ -60,6 +62,30 @@ def run() -> dict:
         print(f"FAILED: {e}")
         print("  WARNING: Continuing without BLS unemployment data")
         # Pipeline continues with other datasets
+
+    # Pull Open Baltimore crime data
+    print("\n--- Pulling Open Baltimore crime data ---")
+    print(f"  Pulling {CRIME_PART1.title} ({CRIME_PART1.dataset_id})...", end=" ")
+    try:
+        crime_df = pull_and_clean_ob_crime_dataset(CRIME_PART1, save=True)
+        # Join crime counts with ACS population to produce per-1,000 rates
+        pop_df = datasets.get("acs1_total_population")
+        if pop_df is not None:
+            crime_rates = crime_df.merge(
+                pop_df[["year", "total_population"]], on="year", how="left"
+            )
+            for col in ("part1_count", "violent_count", "property_count", "homicide_count"):
+                rate_col = col.replace("_count", "_rate_per_1k")
+                crime_rates[rate_col] = (
+                    crime_rates[col] / crime_rates["total_population"] * 1000
+                ).round(2)
+            datasets["ob_crime_rates"] = crime_rates
+            print(f"{len(crime_rates)} rows")
+        else:
+            print("SKIPPED rate computation — ACS population not available")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        print("  WARNING: Continuing without crime data")
 
     # ── Layer 3: Compute metrics ─────────────────────────────────────────────
     print("\n--- Computing dashboard metrics ---")
