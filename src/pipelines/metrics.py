@@ -604,7 +604,8 @@ _BPD_CAVEATS = (
     "Source: BPD Part 1 Victim Based Crime Data (wsfq-mvij). "
     "⚠️ Data quality issues from May 2021 due to BPD Records Management System "
     "transition — 2021 and 2022 annual totals are likely understated. "
-    "Rate denominator is ACS 1-Year total population estimate."
+    "Rate denominator is ACS 1-Year total population estimate. "
+    "Note: Common/simple assault is Part 2 (not Part 1) per FBI UCR standards and is excluded."
 )
 _BPD_URL = "https://data.baltimorecity.gov/Public-Safety/BPD-Part-1-Victim-Based-Crime-Data/wsfq-mvij"
 _BPD_SOURCE = "BPD Part 1 Victim Based Crime Data / Open Baltimore"

@@ -40,13 +40,14 @@ BPD_PART1_CRIME_DATASET_ID = "wsfq-mvij"
 VIOLENT_CRIME_TYPES = {
     "HOMICIDE",
     "RAPE",
+    "ROBBERY",          # Generic robbery (no subtype)
     "ROBBERY - CARJACKING",
     "ROBBERY - COMMERCIAL",
     "ROBBERY - RESIDENCE",
     "ROBBERY - STREET",
     "AGG. ASSAULT",
-    "COMMON ASSAULT",   # confirmed present in live data
-    "SHOOTING",
+    # NOTE: "COMMON ASSAULT" is Part 2 (not Part 1) per FBI UCR - excluded
+    "SHOOTING",         # Firearm-involved aggravated assault
 }
 
 PROPERTY_CRIME_TYPES = {
