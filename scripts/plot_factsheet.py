@@ -33,12 +33,26 @@ for metric_id in metrics:
         color='#1f77b4',
     )
 
-    # Minimal title only (no axis labels)
+    # Title with data source annotation
     plt.title(
         metric_data["indicator_name"].iloc[0],
         fontsize=16,
         fontweight='bold',
-        pad=15,
+        pad=20,
+        loc='center',
+    )
+
+    # Add source annotation just below title
+    plt.text(
+        0.5,
+        0.98,
+        f"Source: {metric_data['source'].iloc[0]}",
+        transform=plt.gca().transAxes,
+        fontsize=10,
+        ha='center',
+        va='top',
+        style='italic',
+        color='#555555',
     )
 
     # Light grid
