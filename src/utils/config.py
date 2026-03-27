@@ -31,7 +31,7 @@ CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY", "")
 # ACS 1-Year estimates: city-level fact sheet (more current, single-year snapshot)
 # NOTE: 2020 ACS 1-Year was NOT released due to COVID data collection issues.
 # Not all tables are available from 2005 — each dataset specifies its own start_year.
-ACS1_LATEST_YEAR = 2023
+ACS1_LATEST_YEAR = 2024
 ACS1_EARLIEST_YEAR = 2005  # First year ACS 1-Year was released
 
 def acs1_years(start: int = ACS1_EARLIEST_YEAR) -> list:
@@ -39,9 +39,9 @@ def acs1_years(start: int = ACS1_EARLIEST_YEAR) -> list:
     return [y for y in range(start, ACS1_LATEST_YEAR + 1) if y != 2020]
 
 # 5-Year estimates: tract/neighborhood level (larger sample, small geographies)
-ACS_LATEST_YEAR = 2023
+ACS_LATEST_YEAR = 2024
 TREND_START_YEAR = 2020
-ACS5_YEARS = list(range(TREND_START_YEAR, ACS_LATEST_YEAR + 1))  # [2020, 2021, 2022, 2023]
+ACS5_YEARS = list(range(TREND_START_YEAR, ACS_LATEST_YEAR + 1))  # [2020, 2021, 2022, 2023, 2024]
 
 # PEP — 2020-base series, vintage 2023 is the latest available
 # A single vintage call returns all years via DATE_CODE; we always call the latest.
@@ -56,8 +56,16 @@ BLS_API_BASE = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
 BLS_LAUS_SERIES = "LAUCN245100000000003"  # Baltimore City unemployment rate (county, NSA)
 BLS_API_KEY = os.environ.get("BLS_API_KEY", "")
 
-# ── Open Baltimore (Socrata) ─────────────────────────────────────────────────
+# ── Open Baltimore ───────────────────────────────────────────────────────────
 OPEN_BALT_BASE = "https://data.baltimorecity.gov/resource"
+
+# SRS crime data (legacy, through 2024)
+SRS_START_YEAR = 2012  # 2010-2011 incomplete in source
+SRS_END_YEAR = 2024    # SRS reporting ended Dec 31, 2024
+
+# NIBRS crime data (current, 2022-present)
+NIBRS_START_YEAR = 2022  # NIBRS dataset starts Jan 1, 2022
+# Overlap period 2022-2024 allows SRS/NIBRS comparison
 
 # ── BNIA CSAs ────────────────────────────────────────────────────────────────
 NUM_CSAS = 55  # Baltimore has 55 Community Statistical Areas

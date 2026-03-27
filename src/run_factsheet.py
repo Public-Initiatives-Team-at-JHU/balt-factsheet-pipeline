@@ -17,10 +17,12 @@ import time
 from src.pipelines.datasets import (
     ALL_FACTSHEET_DATASETS,
     CRIME_PART1,
+    CRIME_NIBRS_GROUPA,
     UNEMPLOYMENT_LAUS,
     pull_and_clean_bls_dataset,
     pull_and_clean_dataset,
     pull_and_clean_ob_crime_dataset,
+    pull_and_clean_nibrs_dataset,
 )
 from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
@@ -63,8 +65,8 @@ def run() -> dict:
         print("  WARNING: Continuing without BLS unemployment data")
         # Pipeline continues with other datasets
 
-    # Pull Open Baltimore crime data
-    print("\n--- Pulling Open Baltimore crime data ---")
+    # Pull Open Baltimore crime data (SRS legacy)
+    print("\n--- Pulling Open Baltimore crime data (SRS) ---")
     print(f"  Pulling {CRIME_PART1.title} ({CRIME_PART1.dataset_id})...", end=" ")
     try:
         crime_df = pull_and_clean_ob_crime_dataset(CRIME_PART1, save=True)
@@ -85,7 +87,31 @@ def run() -> dict:
             print("SKIPPED rate computation — ACS population not available")
     except Exception as e:
         print(f"FAILED: {e}")
-        print("  WARNING: Continuing without crime data")
+        print("  WARNING: Continuing without SRS crime data")
+
+    # Pull NIBRS crime data (2022-present)
+    print("\n--- Pulling Open Baltimore NIBRS crime data ---")
+    print(f"  Pulling {CRIME_NIBRS_GROUPA.title}...", end=" ")
+    try:
+        nibrs_df = pull_and_clean_nibrs_dataset(CRIME_NIBRS_GROUPA, save=True)
+        # Join NIBRS counts with ACS population to produce per-1,000 rates
+        pop_df = datasets.get("acs1_total_population")
+        if pop_df is not None:
+            nibrs_rates = nibrs_df.merge(
+                pop_df[["year", "total_population"]], on="year", how="left"
+            )
+            for col in ("groupa_count", "violent_count", "property_count", "homicide_count"):
+                rate_col = col.replace("_count", "_rate_per_1k")
+                nibrs_rates[rate_col] = (
+                    nibrs_rates[col] / nibrs_rates["total_population"] * 1000
+                ).round(2)
+            datasets["nibrs_crime_rates"] = nibrs_rates
+            print(f"{len(nibrs_rates)} rows")
+        else:
+            print("SKIPPED rate computation — ACS population not available")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        print("  WARNING: Continuing without NIBRS crime data")
 
     # ── Layer 3: Compute metrics ─────────────────────────────────────────────
     print("\n--- Computing dashboard metrics ---")

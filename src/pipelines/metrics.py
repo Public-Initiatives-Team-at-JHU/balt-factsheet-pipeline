@@ -689,6 +689,99 @@ HOMICIDE_COUNT_METRIC = Metric(
 )
 
 
+# ── NIBRS Crime Metrics (2022–present) ────────────────────────────────────────
+
+_NIBRS_CAVEATS = (
+    "Source: BPD NIBRS Group A Crime Data. "
+    "⚠️ NIBRS reporting began in 2022 with full transition Jan 1, 2025. "
+    "⚠️ NIBRS eliminates the hierarchy rule, so incident counts are ~10.6% higher "
+    "than SRS for the same time period (multiple offenses per incident now captured). "
+    "⚠️ NOT directly comparable to SRS Part 1 data (2010-2024). "
+    "Rate denominator is ACS 1-Year total population estimate."
+)
+_NIBRS_URL = "https://data.baltimorecity.gov/datasets/baltimore::nibrs-group-a-crime-data"
+_NIBRS_SOURCE = "BPD NIBRS Group A Crime Data / Open Baltimore"
+
+
+def _nibrs_crime_rate(col: str):
+    """Return a compute function for a pre-computed per-1,000 NIBRS crime rate."""
+    def _compute(row):
+        val = row.get(col)
+        return float(val) if val is not None and not (isinstance(val, float) and val != val) else None
+    return _compute
+
+
+GROUPA_CRIME_RATE_METRIC = Metric(
+    id="groupa_crime_rate_per_1k_nibrs",
+    name="Part 1 Crime Rate (per 1,000) [NIBRS]",
+    description="Total NIBRS Group A crimes per 1,000 residents (Part 1 equivalents)",
+    compute=_nibrs_crime_rate("groupa_rate_per_1k"),
+    source_dataset="nibrs_crime_rates",
+    source_table="NIBRS Group A",
+    formula_description=(
+        "Annual NIBRS Group A crime count / ACS total population × 1,000. "
+        "Group A crimes = violent + property (NIBRS methodology)."
+    ),
+    source_name=_NIBRS_SOURCE,
+    source_url=_NIBRS_URL,
+    unit="rate per 1,000",
+    update_frequency="annual",
+    caveats=_NIBRS_CAVEATS,
+)
+
+VIOLENT_CRIME_RATE_NIBRS_METRIC = Metric(
+    id="violent_crime_rate_per_1k_nibrs",
+    name="Violent Crime Rate (per 1,000) [NIBRS]",
+    description="Violent crimes per 1,000 residents (NIBRS Group A: homicide, rape, robbery, aggravated assault)",
+    compute=_nibrs_crime_rate("violent_rate_per_1k"),
+    source_dataset="nibrs_crime_rates",
+    source_table="NIBRS Group A",
+    formula_description=(
+        "Annual violent crime count / ACS total population × 1,000. "
+        "Violent = HOMICIDE + RAPE + ROBBERY (all types) + AGG. ASSAULT."
+    ),
+    source_name=_NIBRS_SOURCE,
+    source_url=_NIBRS_URL,
+    unit="rate per 1,000",
+    update_frequency="annual",
+    caveats=_NIBRS_CAVEATS,
+)
+
+PROPERTY_CRIME_RATE_NIBRS_METRIC = Metric(
+    id="property_crime_rate_per_1k_nibrs",
+    name="Property Crime Rate (per 1,000) [NIBRS]",
+    description="Property crimes per 1,000 residents (NIBRS: burglary, larceny types, auto theft, arson)",
+    compute=_nibrs_crime_rate("property_rate_per_1k"),
+    source_dataset="nibrs_crime_rates",
+    source_table="NIBRS Group A",
+    formula_description=(
+        "Annual property crime count / ACS total population × 1,000. "
+        "Property = BURGLARY + LARCENY + LARCENY FROM AUTO + "
+        "LARCENY OF MV PARTS + SHOPLIFTING + AUTO THEFT + ARSON."
+    ),
+    source_name=_NIBRS_SOURCE,
+    source_url=_NIBRS_URL,
+    unit="rate per 1,000",
+    update_frequency="annual",
+    caveats=_NIBRS_CAVEATS,
+)
+
+HOMICIDE_COUNT_NIBRS_METRIC = Metric(
+    id="homicide_count_nibrs",
+    name="Homicides (count) [NIBRS]",
+    description="Total homicide incidents reported to BPD (NIBRS)",
+    compute=lambda row: row.get("homicide_count"),
+    source_dataset="nibrs_crime_rates",
+    source_table="NIBRS Group A",
+    formula_description="Direct count of incidents where Description = 'HOMICIDE'.",
+    source_name=_NIBRS_SOURCE,
+    source_url=_NIBRS_URL,
+    unit="count",
+    update_frequency="annual",
+    caveats=_NIBRS_CAVEATS,
+)
+
+
 ALL_FACTSHEET_METRICS = [
     # Population
     TOTAL_POPULATION_METRIC,       # ACS 1-Year — long trend 2005–present
@@ -711,11 +804,16 @@ ALL_FACTSHEET_METRICS = [
     PCT_ASIAN_METRIC,
     PCT_TWO_OR_MORE_METRIC,
     PCT_OTHER_RACE_METRIC,
-    # Crime
+    # Crime (SRS legacy, 2012-2024)
     PART1_CRIME_RATE_METRIC,
     VIOLENT_CRIME_RATE_METRIC,
     PROPERTY_CRIME_RATE_METRIC,
     HOMICIDE_COUNT_METRIC,
+    # Crime (NIBRS, 2022-present) — overlaps 2022-2024 for comparison
+    GROUPA_CRIME_RATE_METRIC,
+    VIOLENT_CRIME_RATE_NIBRS_METRIC,
+    PROPERTY_CRIME_RATE_NIBRS_METRIC,
+    HOMICIDE_COUNT_NIBRS_METRIC,
     # Household
     AVG_HOUSEHOLD_SIZE_METRIC,
 ]

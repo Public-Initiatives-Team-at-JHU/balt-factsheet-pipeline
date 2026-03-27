@@ -25,6 +25,10 @@ from src.pipelines.open_baltimore import (
     classify_crime,
     fetch_crime_counts_by_year,
 )
+from src.pipelines.nibrs import (
+    classify_crime_nibrs,
+    fetch_nibrs_counts_by_year,
+)
 from src.utils.config import ACS1_EARLIEST_YEAR, ACS1_LATEST_YEAR, PEP_LATEST_VINTAGE, PEP_START_YEAR, acs1_years
 from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
 
@@ -111,6 +115,7 @@ def pull_and_clean_dataset(
     dataset: ACSDataset,
     years: list = None,
     save: bool = True,
+    extrapolate_to_current: bool = False,
 ) -> pd.DataFrame:
     """Fetch Census ACS data, clean it, and optionally save to disk.
 
@@ -120,11 +125,13 @@ def pull_and_clean_dataset(
     3. Renames columns from Census codes to human-readable names
     4. Converts types (strings → numeric, suppressed MOE sentinel → NaN)
     5. Assembles into a single DataFrame across all years
+    6. (Optional) Extrapolates to current year if ACS data not yet released
 
     Args:
         dataset: ACSDataset definition specifying what to pull
         years: List of ACS vintage years to fetch (default: ACS_YEARS from config)
         save: If True, save the clean CSV and data dictionary to data/datasets/
+        extrapolate_to_current: If True, extrapolate to current year using recent trend
 
     Returns:
         Clean DataFrame with columns: year, geography, plus human-readable names.
@@ -160,6 +167,44 @@ def pull_and_clean_dataset(
         all_rows.append(row)
 
     df = pd.DataFrame(all_rows)
+
+    # Extrapolate to current year if requested and ACS data not available yet
+    if extrapolate_to_current:
+        from datetime import datetime
+        current_year = datetime.now().year
+        latest_year = df['year'].max()
+
+        if current_year > latest_year:
+            # Extrapolate using linear regression on last 5 years
+            recent = df[df['year'] >= latest_year - 4].copy()
+            for col in df.columns:
+                if col in ('year', 'geography') or df[col].dtype == object:
+                    continue
+                if col.endswith('_moe'):
+                    continue  # Don't extrapolate MOE
+
+                # Simple linear extrapolation
+                z = np.polyfit(recent['year'], recent[col].fillna(0), 1)
+                p = np.poly1d(z)
+
+                for year in range(latest_year + 1, current_year + 1):
+                    if year not in df['year'].values:
+                        new_row = {'year': year, 'geography': 'Baltimore City'}
+                        for c in df.columns:
+                            if c == 'year' or c == 'geography':
+                                continue
+                            elif c.endswith('_moe'):
+                                new_row[c] = None  # No MOE for extrapolated values
+                            elif c == col:
+                                new_row[c] = int(p(year)) if df[col].dtype == 'int64' else round(float(p(year)), 2)
+                            else:
+                                new_row[c] = None
+
+                        # Only add if this column is the primary metric for this dataset
+                        if col in dataset.rename_map.values():
+                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+            df = df.sort_values('year').reset_index(drop=True)
 
     if save:
         save_dataset(df, dataset.file_name)
@@ -1109,12 +1154,178 @@ def pull_and_clean_ob_crime_dataset(
 CRIME_PART1 = OpenBaltimoreDataset(
     dataset_id="wsfq-mvij",
     name="crime_part1",
-    title="BPD Part 1 Crime",
+    title="BPD Part 1 Crime (SRS)",
     description=(
-        "Annual Part 1 crime counts from BPD Victim Based Crime Data. "
+        "Annual Part 1 crime counts from BPD Victim Based Crime Data (legacy SRS). "
         "Includes totals for all Part 1, violent, property, and homicide. "
         "⚠️ Data starts 2012 (2010-2011 records are incomplete in source). "
-        "⚠️ Data quality issues also exist from May 2021 due to BPD RMS transition."
+        "⚠️ Data quality issues also exist from May 2021 due to BPD RMS transition. "
+        "⚠️ SRS reporting ended 2024; see NIBRS dataset for 2025+."
     ),
     start_year=2012,
+)
+
+
+# ── NIBRS Dataset ─────────────────────────────────────────────────────────────
+
+
+@dataclass
+class NIBRSDataset:
+    """Declarative definition for a NIBRS crime dataset from Open Baltimore.
+
+    NIBRS (National Incident-Based Reporting System) replaced SRS in 2025.
+    Dataset covers 2022-present, providing a 3-year overlap with SRS (2022-2024).
+    """
+
+    name: str           # Short name for file naming
+    title: str          # Human-readable title
+    description: str    # What this dataset covers
+    start_year: int = 2022
+
+    @property
+    def file_name(self) -> str:
+        return f"nibrs_{self.name}"
+
+    @property
+    def data_dictionary_rows(self) -> list:
+        return [
+            {"column": "year", "description": "Calendar year", "notes": ""},
+            {"column": "geography", "description": "Geographic area", "notes": "Baltimore City"},
+            {
+                "column": "groupa_count",
+                "description": "Total NIBRS Group A crime incidents (Part 1 equivalents)",
+                "notes": (
+                    "FBI NIBRS Group A classification. Comparable to SRS Part 1 but counts "
+                    "are ~10.6% higher due to elimination of hierarchy rule (multiple offenses "
+                    "per incident are now captured)."
+                ),
+            },
+            {
+                "column": "violent_count",
+                "description": "Violent crime incidents",
+                "notes": "Homicide, rape, robbery (all types), aggravated assault",
+            },
+            {
+                "column": "property_count",
+                "description": "Property crime incidents",
+                "notes": (
+                    "Burglary, larceny, larceny from auto, larceny of motor vehicle parts, "
+                    "shoplifting, auto theft, arson. NIBRS separates larceny into 4 subtypes."
+                ),
+            },
+            {"column": "homicide_count", "description": "Homicide incidents", "notes": ""},
+            {
+                "column": "methodology_note",
+                "description": "NIBRS methodology flag",
+                "notes": (
+                    "All rows have 'NIBRS' value. NIBRS data is not directly comparable to "
+                    "SRS due to hierarchy rule elimination and expanded crime type granularity."
+                ),
+            },
+        ]
+
+
+def pull_and_clean_nibrs_dataset(
+    dataset: NIBRSDataset,
+    save: bool = True,
+) -> pd.DataFrame:
+    """Fetch Open Baltimore NIBRS crime data, aggregate by year, and classify.
+
+    Process:
+    1. Query ArcGIS FeatureServer with aggregation (year + description → count)
+    2. Save raw aggregated response (Layer 1)
+    3. Classify each description as violent / property / other
+    4. Sum to annual totals: groupa (Part 1 equivalent), violent, property, homicide
+    5. Flag all rows with NIBRS methodology note
+
+    Args:
+        dataset: NIBRSDataset definition
+        save: If True, save clean CSV and data dictionary
+
+    Returns:
+        Clean DataFrame: year, geography, groupa_count, violent_count,
+        property_count, homicide_count, methodology_note
+    """
+    from datetime import datetime
+
+    # Fetch through current year
+    end_year = datetime.now().year
+    raw = fetch_nibrs_counts_by_year(
+        start_year=dataset.start_year,
+        end_year=end_year,
+    )
+
+    # Layer 1: save raw aggregated response
+    save_raw_response(
+        raw, "nibrs", "groupa",
+        f"{dataset.start_year}-{end_year}", geo="city",
+    )
+
+    if not raw:
+        raise ValueError("No data returned from NIBRS dataset")
+
+    # Parse and classify each row
+    records = []
+    for row in raw:
+        year = row.get("year")
+        if year is None:
+            continue
+
+        desc = row.get("description", "").strip().upper()
+        count = int(row.get("count", 0))
+        category = classify_crime_nibrs(desc)
+
+        records.append({
+            "year": year,
+            "description": desc,
+            "count": count,
+            "category": category,
+            "is_homicide": desc == "HOMICIDE",
+        })
+
+    if not records:
+        raise ValueError("Could not parse any NIBRS crime records from API response")
+
+    detail_df = pd.DataFrame(records)
+
+    # Aggregate to annual totals
+    annual = (
+        detail_df.groupby("year")
+        .apply(lambda g: pd.Series({
+            "groupa_count":    g.loc[g["category"].notna(), "count"].sum(),
+            "violent_count":  g.loc[g["category"] == "violent", "count"].sum(),
+            "property_count": g.loc[g["category"] == "property", "count"].sum(),
+            "homicide_count": g.loc[g["is_homicide"], "count"].sum(),
+        }), include_groups=False)
+        .reset_index()
+    )
+
+    annual["geography"] = "Baltimore City"
+    annual["methodology_note"] = "NIBRS"
+
+    # Reorder columns
+    annual = annual[[
+        "year", "geography",
+        "groupa_count", "violent_count", "property_count", "homicide_count",
+        "methodology_note",
+    ]].sort_values("year").reset_index(drop=True)
+
+    if save:
+        save_dataset(annual, dataset.file_name)
+        save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
+
+    return annual
+
+
+CRIME_NIBRS_GROUPA = NIBRSDataset(
+    name="groupa",
+    title="BPD NIBRS Group A Crime",
+    description=(
+        "Annual NIBRS Group A crime counts (Part 1 equivalents). "
+        "Includes totals for all Group A, violent, property, and homicide. "
+        "⚠️ NIBRS data starts 2022 (with overlap through 2024 for SRS comparison). "
+        "⚠️ Effective Jan 1, 2025, BPD fully transitioned to NIBRS reporting. "
+        "⚠️ Counts are ~10.6% higher than SRS due to elimination of hierarchy rule."
+    ),
+    start_year=2022,
 )
