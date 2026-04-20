@@ -24,6 +24,11 @@ from src.pipelines.datasets import (
     pull_and_clean_ob_crime_dataset,
     pull_and_clean_nibrs_dataset,
 )
+from src.pipelines.msde_report_card import (
+    ACCOUNTABILITY_DATA,
+    ACCOUNTABILITY_DETAILS,
+    pull_and_clean_msde_dataset,
+)
 from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
     build_methodology_table,
@@ -112,6 +117,36 @@ def run() -> dict:
     except Exception as e:
         print(f"FAILED: {e}")
         print("  WARNING: Continuing without NIBRS crime data")
+
+    # Pull MSDE Report Card data (Baltimore City schools)
+    print("\n--- Pulling MSDE Report Card data ---")
+    print(f"  Pulling {ACCOUNTABILITY_DATA.title}...", end=" ")
+    try:
+        msde_schools = pull_and_clean_msde_dataset(
+            ACCOUNTABILITY_DATA,
+            years=[2022, 2023, 2024, 2025],
+            save=True,
+            baltimore_city_only=True,
+        )
+        datasets[ACCOUNTABILITY_DATA.file_name] = msde_schools
+        print(f"{len(msde_schools)} rows")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        print("  WARNING: Continuing without MSDE accountability data")
+
+    print(f"  Pulling {ACCOUNTABILITY_DETAILS.title}...", end=" ")
+    try:
+        msde_details = pull_and_clean_msde_dataset(
+            ACCOUNTABILITY_DETAILS,
+            years=[2022, 2023, 2024, 2025],
+            save=True,
+            baltimore_city_only=True,
+        )
+        datasets[ACCOUNTABILITY_DETAILS.file_name] = msde_details
+        print(f"{len(msde_details)} rows")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        print("  WARNING: Continuing without MSDE accountability details")
 
     # ── Layer 3: Compute metrics ─────────────────────────────────────────────
     print("\n--- Computing dashboard metrics ---")

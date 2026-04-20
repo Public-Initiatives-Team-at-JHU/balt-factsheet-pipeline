@@ -782,6 +782,84 @@ HOMICIDE_COUNT_NIBRS_METRIC = Metric(
 )
 
 
+# ── MSDE Report Card Metrics ──────────────────────────────────────────────────
+
+_MSDE_URL = "https://reportcard.msde.maryland.gov/"
+_MSDE_SOURCE = "Maryland State Department of Education Report Card"
+_MSDE_CAVEATS = (
+    "Data starts 2022 (school year 2021-2022). No report cards for 2020-2021 (COVID). "
+    "Star ratings calculated using Maryland's accountability system. "
+    "Represents Baltimore City public schools only."
+)
+
+
+def _safe_numeric(value):
+    """Convert value to float, handling None and NaN."""
+    if value is None or (isinstance(value, float) and value != value):
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+AVG_SCHOOL_RATING_METRIC = Metric(
+    id="avg_school_star_rating",
+    name="Average School Star Rating",
+    description="Average star rating (1-5) for Baltimore City public schools",
+    compute=lambda row: _safe_numeric(row.get("rating")),
+    source_dataset="msde_accountability_schools",
+    source_table="Accountability Schools",
+    formula_description=(
+        "Mean of school-level star ratings (1-5 scale) across all Baltimore City public schools. "
+        "Star ratings are calculated by MSDE based on academic achievement, progress, chronic "
+        "absenteeism, and other accountability indicators."
+    ),
+    source_name=_MSDE_SOURCE,
+    source_url=_MSDE_URL,
+    unit="rating (1-5 scale)",
+    update_frequency="annual",
+    caveats=_MSDE_CAVEATS,
+)
+
+AVG_ACCOUNTABILITY_SCORE_METRIC = Metric(
+    id="avg_accountability_score",
+    name="Average School Accountability Score (%)",
+    description="Average accountability score as percentage of total possible points",
+    compute=lambda row: _safe_numeric(row.get("total_points_earned_percentage")),
+    source_dataset="msde_accountability_schools",
+    source_table="Accountability Schools",
+    formula_description=(
+        "Mean of school-level accountability scores (percentage of total possible points earned) "
+        "across all Baltimore City public schools. Score is calculated from academic achievement, "
+        "progress, chronic absenteeism, graduation rate (high schools), and school climate measures."
+    ),
+    source_name=_MSDE_SOURCE,
+    source_url=_MSDE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_MSDE_CAVEATS,
+)
+
+PCT_SCHOOLS_3PLUS_STARS_METRIC = Metric(
+    id="pct_schools_3plus_stars",
+    name="% Schools with 3+ Stars",
+    description="Percentage of Baltimore City schools earning 3 or more stars",
+    compute=lambda row: None,  # Requires aggregation across multiple schools - computed separately
+    source_dataset="msde_accountability_schools",
+    source_table="Accountability Schools",
+    formula_description=(
+        "Count of schools with rating ≥ 3 / total schools with ratings × 100. "
+        "3+ stars indicates schools meeting or exceeding Maryland's accountability standards."
+    ),
+    source_name=_MSDE_SOURCE,
+    source_url=_MSDE_URL,
+    unit="percent",
+    update_frequency="annual",
+    caveats=_MSDE_CAVEATS + " Requires custom aggregation across schools per year.",
+)
+
+
 ALL_FACTSHEET_METRICS = [
     # Population
     TOTAL_POPULATION_METRIC,       # ACS 1-Year — long trend 2005–present
@@ -816,4 +894,8 @@ ALL_FACTSHEET_METRICS = [
     HOMICIDE_COUNT_NIBRS_METRIC,
     # Household
     AVG_HOUSEHOLD_SIZE_METRIC,
+    # Education / Schools (MSDE Report Card, 2022+)
+    AVG_SCHOOL_RATING_METRIC,
+    AVG_ACCOUNTABILITY_SCORE_METRIC,
+    PCT_SCHOOLS_3PLUS_STARS_METRIC,
 ]

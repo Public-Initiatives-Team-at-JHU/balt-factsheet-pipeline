@@ -1018,6 +1018,13 @@ ALL_FACTSHEET_DATASETS.extend([
 ])
 
 
+# ── MSDE Report Card Datasets (imported from msde_report_card.py) ────────────
+
+# Note: MSDE datasets are handled separately via pull_and_clean_msde_dataset()
+# They don't use the ACSDataset pattern but are included for reference.
+# See src/pipelines/msde_report_card.py and README_MSDE.md for details.
+
+
 # ── Open Baltimore Dataset ────────────────────────────────────────────────────
 
 

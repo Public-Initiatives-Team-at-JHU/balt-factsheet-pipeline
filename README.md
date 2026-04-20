@@ -1,6 +1,6 @@
 # JHU Public Impact Data Pipelines
 
-Data pipelines for the JHU Public Impact Initiatives team's internal dashboard. Pulls public data about Baltimore City from Census, BLS, and other federal/local sources, producing clean datasets and computed metrics for Power BI dashboards on SharePoint.
+Data pipelines for the JHU Public Impact Initiatives team's internal dashboard. Pulls public data about Baltimore City from Census, BLS, MSDE, and other federal/state/local sources, producing clean datasets and computed metrics for Power BI dashboards on SharePoint.
 
 ## Quick Start
 
@@ -38,9 +38,15 @@ Census API  →  data/raw/       →  data/datasets/      →  data/processed/
 ```
 src/
   pipelines/
-    census_acs.py       # Census ACS 5-Year API client
+    census_acs.py       # Census ACS 1-Year API client
+    census_pop.py       # Census PEP (Population Estimates Program)
+    bls.py              # BLS LAUS (unemployment statistics)
+    open_baltimore.py   # Open Baltimore crime data
+    nibrs.py            # BPD NIBRS crime data (2022+)
+    msde_report_card.py # MSDE School Report Card data
     datasets.py         # Clean dataset definitions (ACSDataset dataclass)
     metrics.py          # Dashboard metric definitions (Metric dataclass)
+    README_MSDE.md      # Documentation for MSDE pipeline
   utils/
     config.py           # All constants: FIPS codes, API URLs, output schemas
     io.py               # File I/O for all three data layers
@@ -134,14 +140,27 @@ All constants live in `src/utils/config.py`:
 | `CENSUS_API_KEY` | env `CENSUS_API_KEY` | Optional — higher rate limits |
 | `BLS_API_KEY` | env `BLS_API_KEY` | Optional — higher rate limits |
 
-## API Keys
+## Data Sources
 
-Both Census and BLS APIs work without keys (lower rate limits). To register:
+### Census Bureau
+- **ACS 1-Year**: Population, demographics, income, employment, housing (2005-2024)
+- **PEP**: Annual population estimates (2020-2023)
+- API Key: https://api.census.gov/data/key_signup.html (optional, higher rate limits)
 
-- **Census**: https://api.census.gov/data/key_signup.html
-- **BLS**: https://data.bls.gov/registrationEngine/
+### Bureau of Labor Statistics (BLS)
+- **LAUS**: Monthly unemployment rates (2005-present)
+- API Key: https://data.bls.gov/registrationEngine/ (optional, higher rate limits)
 
-Set as environment variables:
+### Maryland State Department of Education (MSDE)
+- **School Report Card**: Star ratings, accountability scores, performance indicators (2022-2025)
+- No API key required
+- Documentation: `src/pipelines/README_MSDE.md`
+
+### Open Baltimore
+- **Crime Data**: BPD Part 1 crimes (SRS: 2012-2024, NIBRS: 2022+)
+- No API key required
+
+Set API keys as environment variables:
 
 ```bash
 export CENSUS_API_KEY="your-key-here"
@@ -162,16 +181,17 @@ Tests mock all Census API calls — no network required, no rate limits consumed
 
 | Step | Status | Description |
 |------|--------|-------------|
-| 1 | Done | Project skeleton, config, .gitignore |
-| 2 | Done | ACS API client (fetch city, tracts, verify variables) |
-| 3 | Done | Raw data saving (Layer 1 I/O) |
-| 4 | Done | Clean dataset layer + B01003 Total Population |
-| 5 | Done | Metric computation layer + Total Population metric |
-| 6 | Pending | Median Household Income (B19013) |
-| 7 | Pending | Remaining 6 indicators (B23025, B15003, B25091, B25070, B25010) |
-| 8 | Pending | Batch runner (`run_factsheet.py`) |
-| 9 | Pending | Data validation |
-| 10 | Pending | Variable verification utility |
-| 11 | Pending | Census PEP pipeline (annual population estimates) |
-| 12 | Pending | Tract-level fetching (Phase 2 foundation) |
-| 13 | Pending | Logging and error handling |
+| 1 | ✅ Done | Project skeleton, config, .gitignore |
+| 2 | ✅ Done | ACS API client (fetch city, tracts, verify variables) |
+| 3 | ✅ Done | Raw data saving (Layer 1 I/O) |
+| 4 | ✅ Done | Clean dataset layer + B01003 Total Population |
+| 5 | ✅ Done | Metric computation layer + Total Population metric |
+| 6 | ✅ Done | All ACS 1-Year indicators (11 tables, 17 metrics) |
+| 7 | ✅ Done | BLS LAUS unemployment pipeline |
+| 8 | ✅ Done | Open Baltimore crime pipeline (SRS + NIBRS) |
+| 9 | ✅ Done | Census PEP pipeline (annual population estimates) |
+| 10 | ✅ Done | **MSDE Report Card pipeline (school performance)** |
+| 11 | ✅ Done | Batch runner (`run_factsheet.py`) |
+| 12 | ✅ Done | Data validation framework |
+| 13 | Pending | Tract-level fetching (Phase 2 - neighborhood level) |
+| 14 | Pending | CSA aggregation (Phase 2) |
