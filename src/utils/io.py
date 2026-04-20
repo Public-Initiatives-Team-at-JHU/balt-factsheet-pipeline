@@ -26,6 +26,12 @@ def save_raw_response(
 ) -> Path:
     """Save a raw API response as JSON for audit trail.
 
+    Files are organized into subdirectories by data source:
+    - Census (acs5, pep) → data/raw/census/
+    - BLS → data/raw/bls/
+    - Open Baltimore (open_baltimore, nibrs) → data/raw/open_baltimore/
+    - MSDE → data/raw/msde/
+
     Naming convention: {source}_{table}_{geo}_{year}_{timestamp}.json
     Example: acs5_B01003_city_2023_20260302T143022.json
 
@@ -42,11 +48,25 @@ def save_raw_response(
     Returns:
         Path to the saved file.
     """
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    # Map source to subdirectory
+    source_dirs = {
+        "acs5": "census",
+        "acs1": "census",
+        "pep": "census",
+        "bls": "bls",
+        "open_baltimore": "open_baltimore",
+        "nibrs": "open_baltimore",
+        "msde": "msde",
+    }
+    subdir = source_dirs.get(source, source)  # Use source as fallback if not mapped
+
+    # Create source-specific subdirectory
+    source_dir = RAW_DIR / subdir
+    source_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     filename = f"{source}_{table}_{geo}_{year}_{timestamp}.json"
-    filepath = RAW_DIR / filename
+    filepath = source_dir / filename
 
     with open(filepath, "w") as f:
         json.dump(data, f, indent=2)

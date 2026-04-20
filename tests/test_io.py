@@ -72,7 +72,8 @@ class TestSaveRawResponse:
         save_raw_response(["first"], "acs5", "B01003", 2023)
         save_raw_response(["second"], "acs5", "B01003", 2023)
 
-        files = list(tmp_path.glob("*.json"))
+        # Files are now saved in subdirectories by source (acs5 → census/)
+        files = list(tmp_path.glob("**/*.json"))
         # Timestamps may collide within same second, but should create
         # at least 1 file (2 if timestamps differ)
         assert len(files) >= 1
