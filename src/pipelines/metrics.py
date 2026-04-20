@@ -803,13 +803,58 @@ def _safe_numeric(value):
         return None
 
 
+def aggregate_msde_schools_by_year(school_df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate school-level MSDE data to city-level by year.
+
+    Converts school-level accountability data (one row per school per year)
+    into city-level aggregates (one row per year).
+
+    Args:
+        school_df: DataFrame with columns: year, school_name, rating,
+                   total_points_earned_percentage, geography
+
+    Returns:
+        DataFrame with columns: year, geography, avg_rating,
+                                avg_accountability_score, pct_schools_3plus_stars
+    """
+    aggregated = []
+
+    for year in school_df["year"].unique():
+        year_data = school_df[school_df["year"] == year]
+
+        # Filter out rows with missing ratings
+        rated_schools = year_data[year_data["rating"].notna()]
+
+        if len(rated_schools) == 0:
+            continue
+
+        # Compute aggregates
+        avg_rating = rated_schools["rating"].mean()
+        avg_score = rated_schools["total_points_earned_percentage"].mean()
+
+        # Count schools with 3+ stars
+        schools_3plus = (rated_schools["rating"] >= 3).sum()
+        total_schools = len(rated_schools)
+        pct_3plus = (schools_3plus / total_schools * 100) if total_schools > 0 else None
+
+        aggregated.append({
+            "year": year,
+            "geography": "Baltimore City",
+            "avg_rating": round(avg_rating, 2) if pd.notna(avg_rating) else None,
+            "avg_accountability_score": round(avg_score, 2) if pd.notna(avg_score) else None,
+            "pct_schools_3plus_stars": round(pct_3plus, 2) if pct_3plus is not None else None,
+        })
+
+    return pd.DataFrame(aggregated)
+
+
 AVG_SCHOOL_RATING_METRIC = Metric(
     id="avg_school_star_rating",
     name="Average School Star Rating",
     description="Average star rating (1-5) for Baltimore City public schools",
-    compute=lambda row: _safe_numeric(row.get("rating")),
-    source_dataset="msde_accountability_schools",
-    source_table="Accountability Schools",
+    compute=lambda row: _safe_numeric(row.get("avg_rating")),
+    source_dataset="msde_accountability_city_aggregated",
+    source_table="Accountability Schools (aggregated)",
     formula_description=(
         "Mean of school-level star ratings (1-5 scale) across all Baltimore City public schools. "
         "Star ratings are calculated by MSDE based on academic achievement, progress, chronic "
@@ -826,9 +871,9 @@ AVG_ACCOUNTABILITY_SCORE_METRIC = Metric(
     id="avg_accountability_score",
     name="Average School Accountability Score (%)",
     description="Average accountability score as percentage of total possible points",
-    compute=lambda row: _safe_numeric(row.get("total_points_earned_percentage")),
-    source_dataset="msde_accountability_schools",
-    source_table="Accountability Schools",
+    compute=lambda row: _safe_numeric(row.get("avg_accountability_score")),
+    source_dataset="msde_accountability_city_aggregated",
+    source_table="Accountability Schools (aggregated)",
     formula_description=(
         "Mean of school-level accountability scores (percentage of total possible points earned) "
         "across all Baltimore City public schools. Score is calculated from academic achievement, "
@@ -845,9 +890,9 @@ PCT_SCHOOLS_3PLUS_STARS_METRIC = Metric(
     id="pct_schools_3plus_stars",
     name="% Schools with 3+ Stars",
     description="Percentage of Baltimore City schools earning 3 or more stars",
-    compute=lambda row: None,  # Requires aggregation across multiple schools - computed separately
-    source_dataset="msde_accountability_schools",
-    source_table="Accountability Schools",
+    compute=lambda row: _safe_numeric(row.get("pct_schools_3plus_stars")),
+    source_dataset="msde_accountability_city_aggregated",
+    source_table="Accountability Schools (aggregated)",
     formula_description=(
         "Count of schools with rating ≥ 3 / total schools with ratings × 100. "
         "3+ stars indicates schools meeting or exceeding Maryland's accountability standards."
@@ -856,7 +901,7 @@ PCT_SCHOOLS_3PLUS_STARS_METRIC = Metric(
     source_url=_MSDE_URL,
     unit="percent",
     update_frequency="annual",
-    caveats=_MSDE_CAVEATS + " Requires custom aggregation across schools per year.",
+    caveats=_MSDE_CAVEATS,
 )
 
 

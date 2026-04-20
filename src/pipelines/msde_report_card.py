@@ -348,6 +348,11 @@ class MSDeReportCardDataset:
                     "notes": "",
                 },
                 {
+                    "column": "geography",
+                    "description": "Geographic level",
+                    "notes": "Always 'Baltimore City' for this dataset",
+                },
+                {
                     "column": "lea",
                     "description": "Local Education Agency (LEA) code",
                     "notes": "30 = Baltimore City",
@@ -384,6 +389,11 @@ class MSDeReportCardDataset:
                     "column": "year",
                     "description": "School year (e.g., 2025 = 2024-2025 school year)",
                     "notes": "",
+                },
+                {
+                    "column": "geography",
+                    "description": "Geographic level",
+                    "notes": "Always 'Baltimore City' for this dataset",
                 },
                 {
                     "column": "lea",
@@ -513,6 +523,17 @@ def pull_and_clean_msde_dataset(
 
     # Convert year to int
     combined["year"] = pd.to_numeric(combined["year"], errors="coerce").astype("Int64")
+
+    # Convert numeric columns to appropriate types
+    if "rating" in combined.columns:
+        combined["rating"] = pd.to_numeric(combined["rating"], errors="coerce")
+    if "total_points_earned_percentage" in combined.columns:
+        combined["total_points_earned_percentage"] = pd.to_numeric(
+            combined["total_points_earned_percentage"], errors="coerce"
+        )
+
+    # Add geography column for consistency with other datasets
+    combined["geography"] = "Baltimore City"
 
     # Sort by year and school
     sort_cols = ["year"]

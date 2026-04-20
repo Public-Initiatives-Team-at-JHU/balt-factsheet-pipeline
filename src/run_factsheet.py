@@ -31,6 +31,7 @@ from src.pipelines.msde_report_card import (
 )
 from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
+    aggregate_msde_schools_by_year,
     build_methodology_table,
     compute_all_metrics,
     pivot_to_wide,
@@ -130,6 +131,11 @@ def run() -> dict:
         )
         datasets[ACCOUNTABILITY_DATA.file_name] = msde_schools
         print(f"{len(msde_schools)} rows")
+
+        # Aggregate school-level data to city-level for factsheet metrics
+        msde_city_agg = aggregate_msde_schools_by_year(msde_schools)
+        datasets["msde_accountability_city_aggregated"] = msde_city_agg
+        print(f"  Aggregated to city-level: {len(msde_city_agg)} years")
     except Exception as e:
         print(f"FAILED: {e}")
         print("  WARNING: Continuing without MSDE accountability data")
