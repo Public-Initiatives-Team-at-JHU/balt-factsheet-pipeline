@@ -36,6 +36,11 @@ from src.pipelines.metrics import (
     compute_all_metrics,
     pivot_to_wide,
 )
+from src.pipelines.equity_datasets import (
+    ALL_EQUITY_DATASETS,
+    compute_equity_metrics,
+    pull_equity_dataset,
+)
 from src.utils.io import save_processed
 from src.utils.validation import validate_all
 
@@ -177,6 +182,34 @@ def run() -> dict:
     save_processed(metadata, "baltimore_factsheet_metadata")
     print(f"  {len(metadata)} metric definitions → baltimore_factsheet_metadata.csv")
 
+    # ── Equity breakdowns: race/ethnicity disaggregation ────────────────────
+    print("\n--- Pulling equity (race/ethnicity) datasets ---")
+    equity_datasets: dict = {}
+    for eq_dataset in ALL_EQUITY_DATASETS:
+        label = f"{eq_dataset.title} ({eq_dataset.table_id})"
+        print(f"  {label}...", end=" ")
+        try:
+            df = pull_equity_dataset(eq_dataset, save=True)
+            equity_datasets[eq_dataset.file_name] = df
+            print(f"{len(df)} rows")
+        except Exception as e:
+            print(f"FAILED: {e}")
+
+    if equity_datasets:
+        print("\n--- Computing equity metrics ---")
+        equity_df = compute_equity_metrics(equity_datasets)
+        save_processed(equity_df, "baltimore_equity_breakdown")
+        n_groups = equity_df["demographic_group"].nunique()
+        n_indicators = equity_df["indicator_id"].nunique()
+        print(
+            f"  {len(equity_df)} rows "
+            f"({n_indicators} indicators × {n_groups} groups) "
+            f"→ baltimore_equity_breakdown.csv"
+        )
+    else:
+        print("  WARNING: No equity datasets available — skipping equity output")
+        equity_df = None
+
     # ── Validation ───────────────────────────────────────────────────────────
     print("\n--- Validating outputs ---")
     validation = validate_all(datasets, long_df)
@@ -188,6 +221,8 @@ def run() -> dict:
     print(f"  Metrics:  {len(ALL_FACTSHEET_METRICS)}")
     print(f"  Years (wide):  {len(wide_df)}")
     print(f"  Columns (wide): {len(wide_df.columns)}")
+    if equity_df is not None:
+        print(f"  Equity rows: {len(equity_df)}")
 
     return {
         "datasets_count": len(datasets),
@@ -198,6 +233,7 @@ def run() -> dict:
         "validation_ok": validation.ok,
         "validation_errors": validation.error_count,
         "validation_warnings": validation.warning_count,
+        "equity_rows": len(equity_df) if equity_df is not None else 0,
     }
 
 
