@@ -21,7 +21,9 @@ from typing import Callable, Optional
 
 import pandas as pd
 
-from src.utils.config import DASHBOARD_COLUMNS, METHODOLOGY_COLUMNS
+from src.utils.config import ACS1_LATEST_YEAR, DASHBOARD_COLUMNS, METHODOLOGY_COLUMNS
+
+_ACS1Y_URL = f"https://data.census.gov/table/ACSDT1Y{ACS1_LATEST_YEAR}"
 
 
 @dataclass
@@ -182,7 +184,7 @@ TOTAL_POPULATION_METRIC = Metric(
     source_table="B01003",
     formula_description="Direct read of B01003_001E (total population estimate)",
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B01003",
+    source_url=f"{_ACS1Y_URL}.B01003",
     unit="count",
     update_frequency="annual",
     caveats=(
@@ -200,7 +202,7 @@ MEDIAN_HOUSEHOLD_INCOME_METRIC = Metric(
     source_table="B19013",
     formula_description="Direct read of B19013_001E (median household income)",
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B19013",
+    source_url=f"{_ACS1Y_URL}.B19013",
     unit="dollars",
     update_frequency="annual",
     caveats=(
@@ -225,7 +227,7 @@ UNEMPLOYMENT_RATE_METRIC = Metric(
         "B23025_005E (unemployed) / B23025_003E (civilian labor force) × 100"
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B23025",
+    source_url=f"{_ACS1Y_URL}.B23025",
     unit="percent",
     update_frequency="annual",
     caveats=(
@@ -275,7 +277,7 @@ BACHELORS_PLUS_METRIC = Metric(
         "Numerator = Bachelor's + Master's + Professional + Doctorate."
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B15003",
+    source_url=f"{_ACS1Y_URL}.B15003",
     unit="percent",
     update_frequency="annual",
 )
@@ -302,7 +304,7 @@ LESS_THAN_HS_METRIC = Metric(
         "(no schooling through 12th grade, no diploma)."
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B15003",
+    source_url=f"{_ACS1Y_URL}.B15003",
     unit="percent",
     update_frequency="annual",
 )
@@ -329,7 +331,7 @@ MORTGAGE_COST_BURDEN_METRIC = Metric(
         "Denominator = units with computed cost ratio (excludes zero/negative income)."
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B25091",
+    source_url=f"{_ACS1Y_URL}.B25091",
     unit="percent",
     update_frequency="annual",
     caveats="Only includes owner-occupied units with a mortgage, not outright owners.",
@@ -359,7 +361,7 @@ RENT_COST_BURDEN_METRIC = Metric(
         "(excludes zero/negative income and no-cash-rent units)."
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B25070",
+    source_url=f"{_ACS1Y_URL}.B25070",
     unit="percent",
     update_frequency="annual",
     caveats="Excludes no-cash-rent units and zero/negative income households from denominator.",
@@ -374,7 +376,7 @@ AVG_HOUSEHOLD_SIZE_METRIC = Metric(
     source_table="B25010",
     formula_description="Direct read of B25010_001E (average household size of occupied units)",
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B25010",
+    source_url=f"{_ACS1Y_URL}.B25010",
     unit="ratio",
     update_frequency="annual",
 )
@@ -419,7 +421,7 @@ POVERTY_RATE_METRIC = Metric(
         "poverty status is not determined."
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B17001",
+    source_url=f"{_ACS1Y_URL}.B17001",
     unit="percent",
     update_frequency="annual",
     caveats=(
@@ -444,7 +446,7 @@ HOMEOWNERSHIP_RATE_METRIC = Metric(
         "B25003_002E (owner-occupied) / B25003_001E (total occupied units) × 100."
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B25003",
+    source_url=f"{_ACS1Y_URL}.B25003",
     unit="percent",
     update_frequency="annual",
 )
@@ -464,7 +466,7 @@ VACANCY_RATE_METRIC = Metric(
         "B25002_003E (vacant units) / B25002_001E (total housing units) × 100."
     ),
     source_name="ACS 1-Year Estimates",
-    source_url="https://data.census.gov/table/ACSDT1Y2023.B25002",
+    source_url=f"{_ACS1Y_URL}.B25002",
     unit="percent",
     update_frequency="annual",
     caveats=(
@@ -476,7 +478,7 @@ VACANCY_RATE_METRIC = Metric(
 )
 
 
-_RACE_URL = "https://data.census.gov/table/ACSDT1Y2023.B03002"
+_RACE_URL = f"{_ACS1Y_URL}.B03002"
 _RACE_SOURCE = "ACS 1-Year Estimates"
 _RACE_CAVEATS = (
     "Race/ethnicity categories follow Census definitions. "
@@ -703,19 +705,11 @@ _NIBRS_URL = "https://data.baltimorecity.gov/datasets/baltimore::nibrs-group-a-c
 _NIBRS_SOURCE = "BPD NIBRS Group A Crime Data / Open Baltimore"
 
 
-def _nibrs_crime_rate(col: str):
-    """Return a compute function for a pre-computed per-1,000 NIBRS crime rate."""
-    def _compute(row):
-        val = row.get(col)
-        return float(val) if val is not None and not (isinstance(val, float) and val != val) else None
-    return _compute
-
-
 GROUPA_CRIME_RATE_METRIC = Metric(
     id="groupa_crime_rate_per_1k_nibrs",
     name="Part 1 Crime Rate (per 1,000) [NIBRS]",
     description="Total NIBRS Group A crimes per 1,000 residents (Part 1 equivalents)",
-    compute=_nibrs_crime_rate("groupa_rate_per_1k"),
+    compute=_crime_rate("groupa_rate_per_1k"),
     source_dataset="nibrs_crime_rates",
     source_table="NIBRS Group A",
     formula_description=(
@@ -733,7 +727,7 @@ VIOLENT_CRIME_RATE_NIBRS_METRIC = Metric(
     id="violent_crime_rate_per_1k_nibrs",
     name="Violent Crime Rate (per 1,000) [NIBRS]",
     description="Violent crimes per 1,000 residents (NIBRS Group A: homicide, rape, robbery, aggravated assault)",
-    compute=_nibrs_crime_rate("violent_rate_per_1k"),
+    compute=_crime_rate("violent_rate_per_1k"),
     source_dataset="nibrs_crime_rates",
     source_table="NIBRS Group A",
     formula_description=(
@@ -751,7 +745,7 @@ PROPERTY_CRIME_RATE_NIBRS_METRIC = Metric(
     id="property_crime_rate_per_1k_nibrs",
     name="Property Crime Rate (per 1,000) [NIBRS]",
     description="Property crimes per 1,000 residents (NIBRS: burglary, larceny types, auto theft, arson)",
-    compute=_nibrs_crime_rate("property_rate_per_1k"),
+    compute=_crime_rate("property_rate_per_1k"),
     source_dataset="nibrs_crime_rates",
     source_table="NIBRS Group A",
     formula_description=(

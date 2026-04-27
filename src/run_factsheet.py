@@ -39,6 +39,21 @@ from src.pipelines.metrics import (
 from src.utils.io import save_processed
 from src.utils.validation import validate_all
 
+
+def _attach_crime_rates(
+    crime_df: "pd.DataFrame",
+    pop_df: "pd.DataFrame",
+    count_cols: tuple,
+) -> "pd.DataFrame":
+    """Join crime counts to ACS population and add per-1,000 rate columns."""
+    import pandas as pd
+    rates = crime_df.merge(pop_df[["year", "total_population"]], on="year", how="left")
+    for col in count_cols:
+        rate_col = col.replace("_count", "_rate_per_1k")
+        rates[rate_col] = (rates[col] / rates["total_population"] * 1000).round(2)
+    return rates
+
+
 def run() -> dict:
     """Execute the full fact sheet pipeline.
 
@@ -76,17 +91,12 @@ def run() -> dict:
     print(f"  Pulling {CRIME_PART1.title} ({CRIME_PART1.dataset_id})...", end=" ")
     try:
         crime_df = pull_and_clean_ob_crime_dataset(CRIME_PART1, save=True)
-        # Join crime counts with ACS population to produce per-1,000 rates
         pop_df = datasets.get("acs1_total_population")
         if pop_df is not None:
-            crime_rates = crime_df.merge(
-                pop_df[["year", "total_population"]], on="year", how="left"
+            crime_rates = _attach_crime_rates(
+                crime_df, pop_df,
+                ("part1_count", "violent_count", "property_count", "homicide_count"),
             )
-            for col in ("part1_count", "violent_count", "property_count", "homicide_count"):
-                rate_col = col.replace("_count", "_rate_per_1k")
-                crime_rates[rate_col] = (
-                    crime_rates[col] / crime_rates["total_population"] * 1000
-                ).round(2)
             datasets["ob_crime_rates"] = crime_rates
             print(f"{len(crime_rates)} rows")
         else:
@@ -100,17 +110,12 @@ def run() -> dict:
     print(f"  Pulling {CRIME_NIBRS_GROUPA.title}...", end=" ")
     try:
         nibrs_df = pull_and_clean_nibrs_dataset(CRIME_NIBRS_GROUPA, save=True)
-        # Join NIBRS counts with ACS population to produce per-1,000 rates
         pop_df = datasets.get("acs1_total_population")
         if pop_df is not None:
-            nibrs_rates = nibrs_df.merge(
-                pop_df[["year", "total_population"]], on="year", how="left"
+            nibrs_rates = _attach_crime_rates(
+                nibrs_df, pop_df,
+                ("groupa_count", "violent_count", "property_count", "homicide_count"),
             )
-            for col in ("groupa_count", "violent_count", "property_count", "homicide_count"):
-                rate_col = col.replace("_count", "_rate_per_1k")
-                nibrs_rates[rate_col] = (
-                    nibrs_rates[col] / nibrs_rates["total_population"] * 1000
-                ).round(2)
             datasets["nibrs_crime_rates"] = nibrs_rates
             print(f"{len(nibrs_rates)} rows")
         else:

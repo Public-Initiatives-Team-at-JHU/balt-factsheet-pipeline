@@ -16,7 +16,7 @@ SRS for the same time period (~10.6% more offenses due to multi-offense incident
 ArcGIS REST API docs: https://developers.arcgis.com/rest/services-reference/
 """
 
-import requests
+from src.pipelines.open_baltimore import fetch_arcgis_query
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
@@ -56,61 +56,6 @@ PART1_EQUIVALENT_NIBRS = VIOLENT_CRIME_TYPES_NIBRS | PROPERTY_CRIME_TYPES_NIBRS
 # ANIMAL CRUELTY, VANDALISM, FRAUD, INTIMIDATION, KIDNAPPING,
 # EXTORTION, HUMAN TRAFFICKING, SEX OFFENSES, DRUG/NARCOTIC VIOLATIONS,
 # WEAPON VIOLATIONS, PROSTITUTION, PORNOGRAPHY, STOLEN PROPERTY
-
-
-# ── ArcGIS REST client ────────────────────────────────────────────────────────
-
-def fetch_arcgis_query(
-    feature_server_url: str,
-    where: str = "1=1",
-    out_fields: str = "*",
-    out_statistics: list | None = None,
-    group_by: str | None = None,
-    result_record_count: int = 2000,
-) -> list[dict]:
-    """Query an ArcGIS FeatureServer layer and return attributes as a list of dicts.
-
-    Args:
-        feature_server_url: Full URL to the FeatureServer layer (ending in /0, /1 etc.)
-        where: SQL WHERE clause, e.g. "CrimeDateTime >= timestamp '2022-01-01 00:00:00'"
-        out_fields: Comma-separated field names or "*" for all
-        out_statistics: List of statistic dicts for aggregation queries, e.g.
-            [{"statisticType": "count", "onStatisticField": "ObjectId",
-              "outStatisticFieldName": "incident_count"}]
-        group_by: Comma-separated field names for GROUP BY (requires out_statistics)
-        result_record_count: Max records to return per request
-
-    Returns:
-        List of attribute dicts, one per result row.
-
-    Raises:
-        requests.HTTPError: On HTTP error.
-        ValueError: If ArcGIS returns an error payload.
-    """
-    import json
-
-    params: dict = {
-        "where": where,
-        "outFields": out_fields,
-        "returnGeometry": "false",
-        "resultRecordCount": result_record_count,
-        "f": "json",
-    }
-
-    if out_statistics is not None:
-        params["outStatistics"] = json.dumps(out_statistics)
-    if group_by is not None:
-        params["groupByFieldsForStatistics"] = group_by
-
-    resp = requests.get(f"{feature_server_url}/query", params=params, timeout=60)
-    resp.raise_for_status()
-
-    data = resp.json()
-
-    if "error" in data:
-        raise ValueError(f"ArcGIS API error: {data['error']}")
-
-    return [f["attributes"] for f in data.get("features", [])]
 
 
 # ── Crime-specific fetch ──────────────────────────────────────────────────────

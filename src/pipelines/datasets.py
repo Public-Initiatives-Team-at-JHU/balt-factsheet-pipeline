@@ -13,11 +13,12 @@ ready for analysis or metric computation.
 """
 
 from dataclasses import dataclass, field
-
-import pandas as pd
+from datetime import datetime
 
 import numpy as np
+import pandas as pd
 
+from src.pipelines.bls import fetch_bls_laus
 from src.pipelines.census_acs import fetch_acs_city
 from src.pipelines.census_pop import fetch_pep_population, parse_pep_year
 from src.pipelines.open_baltimore import (
@@ -168,49 +169,56 @@ def pull_and_clean_dataset(
 
     df = pd.DataFrame(all_rows)
 
-    # Extrapolate to current year if requested and ACS data not available yet
     if extrapolate_to_current:
-        from datetime import datetime
-        current_year = datetime.now().year
-        latest_year = df['year'].max()
-
-        if current_year > latest_year:
-            # Extrapolate using linear regression on last 5 years
-            recent = df[df['year'] >= latest_year - 4].copy()
-            for col in df.columns:
-                if col in ('year', 'geography') or df[col].dtype == object:
-                    continue
-                if col.endswith('_moe'):
-                    continue  # Don't extrapolate MOE
-
-                # Simple linear extrapolation
-                z = np.polyfit(recent['year'], recent[col].fillna(0), 1)
-                p = np.poly1d(z)
-
-                for year in range(latest_year + 1, current_year + 1):
-                    if year not in df['year'].values:
-                        new_row = {'year': year, 'geography': 'Baltimore City'}
-                        for c in df.columns:
-                            if c == 'year' or c == 'geography':
-                                continue
-                            elif c.endswith('_moe'):
-                                new_row[c] = None  # No MOE for extrapolated values
-                            elif c == col:
-                                new_row[c] = int(p(year)) if df[col].dtype == 'int64' else round(float(p(year)), 2)
-                            else:
-                                new_row[c] = None
-
-                        # Only add if this column is the primary metric for this dataset
-                        if col in dataset.rename_map.values():
-                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-
-            df = df.sort_values('year').reset_index(drop=True)
+        df = _extrapolate_dataset(df, dataset)
 
     if save:
         save_dataset(df, dataset.file_name)
         save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
 
     return df
+
+
+def _extrapolate_dataset(df: pd.DataFrame, dataset: ACSDataset) -> pd.DataFrame:
+    """Extrapolate a clean ACS dataset to the current calendar year.
+
+    Uses linear regression on the last 5 years of data to project forward.
+    MOE columns are not extrapolated (set to None). Only columns that are
+    primary metrics for the dataset (in dataset.rename_map) produce new rows.
+    """
+    current_year = datetime.now().year
+    latest_year = df["year"].max()
+
+    if current_year <= latest_year:
+        return df
+
+    recent = df[df["year"] >= latest_year - 4].copy()
+    for col in df.columns:
+        if col in ("year", "geography") or df[col].dtype == object:
+            continue
+        if col.endswith("_moe"):
+            continue
+
+        z = np.polyfit(recent["year"], recent[col].fillna(0), 1)
+        p = np.poly1d(z)
+
+        for year in range(latest_year + 1, current_year + 1):
+            if year not in df["year"].values:
+                new_row: dict = {"year": year, "geography": "Baltimore City"}
+                for c in df.columns:
+                    if c in ("year", "geography"):
+                        continue
+                    elif c.endswith("_moe"):
+                        new_row[c] = None
+                    elif c == col:
+                        new_row[c] = int(p(year)) if df[col].dtype == "int64" else round(float(p(year)), 2)
+                    else:
+                        new_row[c] = None
+
+                if col in dataset.rename_map.values():
+                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+    return df.sort_values("year").reset_index(drop=True)
 
 
 def _to_numeric(value):
@@ -314,9 +322,6 @@ def pull_and_clean_bls_dataset(
         Clean DataFrame with columns: year, geography, month,
         monthly_{measure}, annual_{measure}
     """
-    from src.pipelines.bls import fetch_bls_laus
-    from datetime import datetime
-
     # BLS publishes data through current month, use current year
     end_year = datetime.now().year
     raw = fetch_bls_laus(dataset.series_id, dataset.start_year, end_year)
@@ -1253,8 +1258,6 @@ def pull_and_clean_nibrs_dataset(
         Clean DataFrame: year, geography, groupa_count, violent_count,
         property_count, homicide_count, methodology_note
     """
-    from datetime import datetime
-
     # Fetch through current year
     end_year = datetime.now().year
     raw = fetch_nibrs_counts_by_year(
