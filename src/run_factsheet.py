@@ -173,10 +173,6 @@ def run() -> dict:
     save_processed(wide_df, "baltimore_factsheet")
     print(f"  {len(wide_df)} years × {len(wide_df.columns) - 1} metrics → baltimore_factsheet.csv")
 
-    # Secondary output: long format (useful for Power BI and programmatic use)
-    save_processed(long_df, "baltimore_factsheet_long")
-    print(f"  {len(long_df)} rows → baltimore_factsheet_long.csv")
-
     # ── Metadata (metric definitions and sources) ────────────────────────────
     metadata = build_methodology_table(ALL_FACTSHEET_METRICS)
     save_processed(metadata, "baltimore_factsheet_metadata")
@@ -196,15 +192,23 @@ def run() -> dict:
             print(f"FAILED: {e}")
 
     if equity_datasets:
+        import pandas as pd
         print("\n--- Computing equity metrics ---")
         equity_df = compute_equity_metrics(equity_datasets)
-        save_processed(equity_df, "baltimore_equity_breakdown")
         n_groups = equity_df["demographic_group"].nunique()
         n_indicators = equity_df["indicator_id"].nunique()
         print(
             f"  {len(equity_df)} rows "
-            f"({n_indicators} indicators × {n_groups} groups) "
-            f"→ baltimore_equity_breakdown.csv"
+            f"({n_indicators} indicators × {n_groups} groups)"
+        )
+
+        # Merge into unified long file: aggregate rows get demographic_group="All",
+        # equity rows carry the specific race/ethnicity label.
+        combined_long_df = pd.concat([long_df, equity_df], ignore_index=True)
+        save_processed(combined_long_df, "baltimore_factsheet_long")
+        print(
+            f"  {len(combined_long_df)} total rows "
+            f"(aggregate + equity) → baltimore_factsheet_long.csv"
         )
     else:
         print("  WARNING: No equity datasets available — skipping equity output")

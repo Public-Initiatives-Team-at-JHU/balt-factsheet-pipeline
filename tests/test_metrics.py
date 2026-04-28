@@ -114,12 +114,12 @@ class TestComputeAllMetrics:
         )
         assert result.iloc[0]["period"] == "2016-2020"
 
-    def test_missing_dataset_raises_keyerror(self):
-        with pytest.raises(KeyError, match="requires dataset"):
-            compute_all_metrics(
-                [TOTAL_POPULATION_METRIC],
-                {},  # no datasets provided
-            )
+    def test_missing_dataset_skips_metric(self):
+        result = compute_all_metrics(
+            [TOTAL_POPULATION_METRIC],
+            {},  # no datasets provided
+        )
+        assert len(result) == 0
 
     def test_computed_metric_division(self, division_metric, division_dataset):
         result = compute_all_metrics(

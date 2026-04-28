@@ -90,6 +90,7 @@ def compute_all_metrics(
                 "indicator_id": metric.id,
                 "geography": dataset_row["geography"],
                 "indicator_name": metric.name,
+                "demographic_group": "All",
                 "value": round(value, 2) if value is not None else None,
                 "margin_of_error": None,
                 "year": year,

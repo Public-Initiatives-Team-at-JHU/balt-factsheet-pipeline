@@ -77,6 +77,7 @@ DASHBOARD_COLUMNS = [
     "indicator_id",
     "geography",
     "indicator_name",
+    "demographic_group",
     "value",
     "margin_of_error",
     "year",

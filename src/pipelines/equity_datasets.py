@@ -40,12 +40,14 @@ RACE_GROUPS: dict[str, tuple[str, str]] = {
 }
 
 EQUITY_OUTPUT_COLUMNS = [
-    "year",
-    "geography",
     "indicator_id",
+    "geography",
     "indicator_name",
     "demographic_group",
     "value",
+    "margin_of_error",
+    "year",
+    "period",
     "source",
     "source_url",
     "last_updated",
@@ -265,12 +267,14 @@ def compute_equity_metrics(equity_datasets: dict[str, pd.DataFrame]) -> pd.DataF
             for _, dataset_row in df.iterrows():
                 value = compute_fn(dataset_row)
                 rows.append({
-                    "year": dataset_row["year"],
-                    "geography": dataset_row["geography"],
                     "indicator_id": indicator_id,
+                    "geography": dataset_row["geography"],
                     "indicator_name": indicator_name,
                     "demographic_group": label,
                     "value": value,
+                    "margin_of_error": None,
+                    "year": dataset_row["year"],
+                    "period": str(dataset_row["year"]),
                     "source": _ACS_SOURCE,
                     "source_url": source_url,
                     "last_updated": now,
