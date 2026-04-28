@@ -20,6 +20,14 @@ import pandas as pd
 # 2020 ACS 1-Year was not released due to COVID — don't warn about this gap
 KNOWN_MISSING_YEARS = {2020}
 
+# Datasets with multiple rows per year-geography by design (monthly, school-level, etc.).
+# The year-geography uniqueness check is skipped for these.
+MULTI_ROW_DATASETS = {
+    "bls_laus_unemployment_monthly",   # one row per month, not per year
+    "msde_accountability_schools",     # one row per school
+    "msde_accountability_details",     # one row per school × indicator
+}
+
 
 @dataclass
 class ValidationResult:
@@ -93,8 +101,8 @@ def validate_dataset(df: pd.DataFrame, dataset_name: str) -> ValidationResult:
                     f"{dataset_name} has {null_years} rows with null year",
                     dataset=dataset_name, null_count=int(null_years))
 
-    # Duplicate year-geography
-    if "geography" in df.columns:
+    # Duplicate year-geography (skip for school/entity-level datasets)
+    if "geography" in df.columns and dataset_name not in MULTI_ROW_DATASETS:
         dupes = df.duplicated(subset=["year", "geography"], keep=False)
         if dupes.any():
             dupe_rows = df[dupes][["year", "geography"]].to_dict("records")
