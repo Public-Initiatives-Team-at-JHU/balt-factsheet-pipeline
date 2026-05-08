@@ -1339,3 +1339,124 @@ CRIME_NIBRS_GROUPA = NIBRSDataset(
     ),
     start_year=2022,
 )
+
+
+# ── NCES CCD Enrollment Dataset ───────────────────────────────────────────────
+
+from src.pipelines.nces_ccd import fetch_ccd_district_enrollment  # noqa: E402
+
+
+@dataclass
+class CCDDataset:
+    """Declarative definition for an NCES CCD district enrollment dataset.
+
+    Uses the Urban Institute Education Data API (no key required) to fetch
+    annual K-12 total enrollment. Year convention: NCES year is school-year
+    start year (2022 = SY 2022-23); stored as ending year (+1).
+    """
+
+    leaid: str          # NCES Local Education Agency ID, e.g. "2400090"
+    name: str           # Short name for file naming, e.g. "k12_enrollment"
+    title: str          # Human-readable title
+    description: str    # What this dataset covers
+    start_year: int = 2010  # Data confirmed available from 2010
+
+    @property
+    def file_name(self) -> str:
+        """Dataset file name without extension. Prefixed with ccd_."""
+        return f"ccd_{self.name}"
+
+    @property
+    def data_dictionary_rows(self) -> list:
+        """Data dictionary entries for all columns."""
+        return [
+            {
+                "column": "year",
+                "description": (
+                    "School-year ending year (e.g. 2023 = SY 2022-23). "
+                    "Converted from NCES start-year convention (+1)."
+                ),
+                "source": "NCES CCD via Urban Institute Education Data API",
+                "notes": "",
+            },
+            {
+                "column": "geography",
+                "description": "Geographic area name",
+                "source": "",
+                "notes": "Baltimore City for district-level data",
+            },
+            {
+                "column": "k12_enrollment",
+                "description": "Total K-12 public school enrollment for the district",
+                "source": "NCES CCD via Urban Institute Education Data API",
+                "notes": (
+                    f"LEAID {self.leaid}. Enrollment as of October count date. "
+                    "Includes all public schools in the district."
+                ),
+            },
+        ]
+
+
+def pull_and_clean_ccd_dataset(
+    dataset: CCDDataset,
+    save: bool = True,
+) -> pd.DataFrame:
+    """Fetch NCES CCD enrollment data, clean it, and optionally save to disk.
+
+    Process:
+    1. Calls the Urban Institute Education Data API for each year in range
+    2. Saves the raw response (Layer 1)
+    3. Converts NCES start-year convention to ending year (+1)
+    4. Builds a clean DataFrame with year, geography, k12_enrollment
+    5. Sorts by year
+
+    Args:
+        dataset: CCDDataset definition specifying which district and years
+        save: If True, save the clean CSV and data dictionary to data/datasets/
+
+    Returns:
+        Clean DataFrame with columns: year, geography, k12_enrollment
+    """
+    end_year = datetime.now().year - 1
+    raw = fetch_ccd_district_enrollment(
+        leaid=dataset.leaid,
+        start_year=dataset.start_year,
+        end_year=end_year,
+    )
+
+    # Layer 1: save raw API response
+    save_raw_response(
+        raw, "nces_ccd", dataset.leaid,
+        f"{dataset.start_year}-{end_year}", geo="city",
+    )
+
+    rows = []
+    for record in raw:
+        # NCES year is school-year start year; convert to ending year
+        year = record["year"] + 1
+        rows.append({
+            "year": year,
+            "geography": "Baltimore City",
+            "k12_enrollment": record["enrollment"],
+        })
+
+    df = pd.DataFrame(rows).sort_values("year").reset_index(drop=True)
+
+    if save:
+        save_dataset(df, dataset.file_name)
+        save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
+
+    return df
+
+
+ENROLLMENT_CCD = CCDDataset(
+    leaid="2400090",
+    name="k12_enrollment",
+    title="K-12 Public School Enrollment (NCES CCD)",
+    description=(
+        "Total K-12 public school enrollment for Baltimore City Public Schools "
+        "from the NCES Common Core of Data (CCD), accessed via the Urban Institute "
+        "Education Data API. Annual data reported as of the October count date."
+    ),
+    start_year=2010,
+)

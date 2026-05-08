@@ -292,3 +292,49 @@ class TestTotalPopulationDefinition:
 
     def test_file_name(self):
         assert TOTAL_POPULATION.file_name == "acs1_total_population"
+
+
+# ── CCD Dataset tests ─────────────────────────────────────────────────────────
+
+from src.pipelines.datasets import (
+    CCDDataset,
+    ENROLLMENT_CCD,
+    pull_and_clean_ccd_dataset,
+)
+
+MOCK_CCD_RESPONSE = [
+    {"year": 2022, "leaid": "2400090", "enrollment": 76800},
+    {"year": 2023, "leaid": "2400090", "enrollment": 75100},
+]
+
+
+def test_ccd_dataset_file_name():
+    ds = CCDDataset(leaid="2400090", name="k12_enrollment", title="K-12 Enrollment", description="Test")
+    assert ds.file_name == "ccd_k12_enrollment"
+
+
+def test_pull_and_clean_ccd_returns_dataframe():
+    with patch("src.pipelines.datasets.fetch_ccd_district_enrollment") as mock_fetch:
+        mock_fetch.return_value = MOCK_CCD_RESPONSE
+        df = pull_and_clean_ccd_dataset(ENROLLMENT_CCD, save=False)
+
+    assert list(df.columns) == ["year", "geography", "k12_enrollment"]
+    assert len(df) == 2
+
+
+def test_pull_and_clean_ccd_year_convention():
+    """NCES year (start year) should be converted to ending year (+1)."""
+    with patch("src.pipelines.datasets.fetch_ccd_district_enrollment") as mock_fetch:
+        mock_fetch.return_value = [{"year": 2022, "leaid": "2400090", "enrollment": 76800}]
+        df = pull_and_clean_ccd_dataset(ENROLLMENT_CCD, save=False)
+
+    # NCES 2022 = SY 2022-23 → stored as year 2023
+    assert df.iloc[0]["year"] == 2023
+
+
+def test_pull_and_clean_ccd_geography():
+    with patch("src.pipelines.datasets.fetch_ccd_district_enrollment") as mock_fetch:
+        mock_fetch.return_value = MOCK_CCD_RESPONSE
+        df = pull_and_clean_ccd_dataset(ENROLLMENT_CCD, save=False)
+
+    assert (df["geography"] == "Baltimore City").all()
