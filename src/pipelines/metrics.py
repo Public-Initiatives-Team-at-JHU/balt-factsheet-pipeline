@@ -900,9 +900,33 @@ PCT_SCHOOLS_3PLUS_STARS_METRIC = Metric(
 )
 
 
+# ── NCES CCD Enrollment Metric ────────────────────────────────────────────────
+
+K12_ENROLLMENT_METRIC = Metric(
+    id="k12_enrollment_bcpss",
+    name="K-12 Public School Enrollment",
+    description="Total student enrollment in Baltimore City public schools (Pre-K through 12th grade)",
+    compute=lambda row: float(row["k12_enrollment"]) if row["k12_enrollment"] is not None else None,
+    source_dataset="ccd_k12_enrollment",
+    source_table="CCD LEA Directory",
+    formula_description="Direct read of total enrollment from NCES CCD district directory. Covers all grades, all races, all sexes.",
+    source_name="NCES Common Core of Data (via Urban Institute Education Data API)",
+    source_url="https://educationdata.urban.org/api/v1/school-districts/ccd/directory/",
+    unit="count",
+    update_frequency="annual",
+    caveats=(
+        "Covers Baltimore City public schools only (LEAID 2400090). "
+        "Year label is the school year ending year (2023 = SY 2022-23). "
+        "NCES CCD data typically lags ~1 year from the current school year. "
+        "Data sourced via Urban Institute Education Data API wrapping NCES CCD."
+    ),
+)
+
+
 ALL_FACTSHEET_METRICS = [
     # Population
     TOTAL_POPULATION_METRIC,       # ACS 1-Year — long trend 2005–present
+    K12_ENROLLMENT_METRIC,
     # Economic
     MEDIAN_HOUSEHOLD_INCOME_METRIC,
     UNEMPLOYMENT_RATE_BLS_METRIC,

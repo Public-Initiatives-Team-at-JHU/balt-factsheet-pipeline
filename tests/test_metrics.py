@@ -234,3 +234,26 @@ class TestTotalPopulationMetricDefinition:
 
     def test_unit_is_count(self):
         assert TOTAL_POPULATION_METRIC.unit == "count"
+
+
+# ── K12_ENROLLMENT_METRIC definition tests ───────────────────────────────────
+
+
+from src.pipelines.metrics import K12_ENROLLMENT_METRIC
+
+
+class TestK12EnrollmentMetric:
+    def test_computes_enrollment(self):
+        row = pd.Series({"year": 2023, "geography": "Baltimore City", "k12_enrollment": 75100})
+        result = K12_ENROLLMENT_METRIC.compute(row)
+        assert result == 75100.0
+
+    def test_handles_none(self):
+        row = pd.Series({"year": 2023, "geography": "Baltimore City", "k12_enrollment": None})
+        result = K12_ENROLLMENT_METRIC.compute(row)
+        assert result is None
+
+    def test_in_all_factsheet_metrics(self):
+        from src.pipelines.metrics import ALL_FACTSHEET_METRICS
+        ids = [m.id for m in ALL_FACTSHEET_METRICS]
+        assert "k12_enrollment_bcpss" in ids
