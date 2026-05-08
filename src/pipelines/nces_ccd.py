@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+"""
+NCES Common Core of Data (CCD) enrollment pipeline.
+
+Fetches total K-12 district enrollment from the Urban Institute Education Data API,
+which wraps NCES CCD data. No API key required.
+
+API: https://educationdata.urban.org/api/v1/school-districts/ccd/directory/{year}/
+Docs: https://educationdata.urban.org/api/v1/school-districts/ccd/directory/
+
+Year convention: NCES uses school-year start year (2022 = SY 2022-23).
+Callers convert to ending year (+1) for storage.
+"""
+
 import requests
 
-EDDATA_BASE_URL = "https://educationdata.urban.org/api/v1/"
+EDDATA_BASE = "https://educationdata.urban.org/api/v1/"
 
 
 def fetch_ccd_district_enrollment(
@@ -23,11 +36,14 @@ def fetch_ccd_district_enrollment(
     Returns:
         List of dicts with keys: year, leaid, enrollment.
         Years with no data are omitted.
+
+    Raises:
+        requests.HTTPError: If the API returns a non-2xx status.
     """
     results = []
     for year in range(start_year, end_year + 1):
-        url = f"{EDDATA_BASE_URL}school-districts/ccd/directory/{year}/"
-        resp = requests.get(url, params={"leaid": leaid})
+        url = f"{EDDATA_BASE}school-districts/ccd/directory/{year}/"
+        resp = requests.get(url, params={"leaid": leaid}, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         for record in data.get("results", []):

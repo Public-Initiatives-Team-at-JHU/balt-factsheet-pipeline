@@ -1,6 +1,7 @@
+"""Tests for src/pipelines/nces_ccd.py — NCES CCD enrollment pipeline."""
+
 from unittest.mock import patch, MagicMock
-import pytest
-from src.pipelines.nces_ccd import fetch_ccd_district_enrollment, EDDATA_BASE_URL
+from src.pipelines.nces_ccd import fetch_ccd_district_enrollment, EDDATA_BASE
 
 MOCK_DIRECTORY_RESPONSE = {
     "count": 1,
@@ -34,6 +35,8 @@ def test_fetch_returns_list_of_dicts():
 def test_fetch_loops_per_year():
     """One API call per year."""
     with patch("src.pipelines.nces_ccd.requests.get") as mock_get:
+        # Mock intentionally returns the same record for every year — we're only
+        # testing call count here, not output fidelity.
         mock_get.return_value = MagicMock(
             json=MagicMock(return_value={
                 "count": 1, "next": None,
