@@ -5,6 +5,7 @@ import pytest
 
 from src.pipelines.metrics import (
     ALL_FACTSHEET_METRICS,
+    K12_ENROLLMENT_METRIC,
     TOTAL_POPULATION_METRIC,
     Metric,
     build_methodology_table,
@@ -239,9 +240,6 @@ class TestTotalPopulationMetricDefinition:
 # ── K12_ENROLLMENT_METRIC definition tests ───────────────────────────────────
 
 
-from src.pipelines.metrics import K12_ENROLLMENT_METRIC
-
-
 class TestK12EnrollmentMetric:
     def test_computes_enrollment(self):
         row = pd.Series({"year": 2023, "geography": "Baltimore City", "k12_enrollment": 75100})
@@ -253,7 +251,12 @@ class TestK12EnrollmentMetric:
         result = K12_ENROLLMENT_METRIC.compute(row)
         assert result is None
 
+    def test_handles_nan(self):
+        import numpy as np
+        row = pd.Series({"year": 2023, "geography": "Baltimore City", "k12_enrollment": np.nan})
+        result = K12_ENROLLMENT_METRIC.compute(row)
+        assert result is None
+
     def test_in_all_factsheet_metrics(self):
-        from src.pipelines.metrics import ALL_FACTSHEET_METRICS
         ids = [m.id for m in ALL_FACTSHEET_METRICS]
         assert "k12_enrollment_bcpss" in ids
