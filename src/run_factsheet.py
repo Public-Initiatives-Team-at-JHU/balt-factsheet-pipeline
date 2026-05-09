@@ -18,8 +18,10 @@ from src.pipelines.datasets import (
     ALL_FACTSHEET_DATASETS,
     CRIME_PART1,
     CRIME_NIBRS_GROUPA,
+    ENROLLMENT_CCD,
     UNEMPLOYMENT_LAUS,
     pull_and_clean_bls_dataset,
+    pull_and_clean_ccd_dataset,
     pull_and_clean_dataset,
     pull_and_clean_ob_crime_dataset,
     pull_and_clean_nibrs_dataset,
@@ -128,6 +130,17 @@ def run() -> dict:
     except Exception as e:
         print(f"FAILED: {e}")
         print("  WARNING: Continuing without NIBRS crime data")
+
+    # Pull NCES CCD enrollment data
+    print("\n--- Pulling NCES CCD enrollment data ---")
+    print(f"  Pulling {ENROLLMENT_CCD.title}...", end=" ")
+    try:
+        ccd_df = pull_and_clean_ccd_dataset(ENROLLMENT_CCD, save=True)
+        datasets[ENROLLMENT_CCD.file_name] = ccd_df
+        print(f"{len(ccd_df)} rows")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        print("  WARNING: Continuing without NCES CCD enrollment data")
 
     # Pull MSDE Report Card data (Baltimore City schools)
     print("\n--- Pulling MSDE Report Card data ---")
