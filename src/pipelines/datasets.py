@@ -30,6 +30,7 @@ from src.pipelines.nibrs import (
     classify_crime_nibrs,
     fetch_nibrs_counts_by_year,
 )
+from src.pipelines.nces_ccd import fetch_ccd_district_enrollment
 from src.utils.config import ACS1_EARLIEST_YEAR, ACS1_LATEST_YEAR, PEP_LATEST_VINTAGE, PEP_START_YEAR, acs1_years
 from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
 
@@ -1343,8 +1344,6 @@ CRIME_NIBRS_GROUPA = NIBRSDataset(
 
 # ── NCES CCD Enrollment Dataset ───────────────────────────────────────────────
 
-from src.pipelines.nces_ccd import fetch_ccd_district_enrollment  # noqa: E402
-
 
 @dataclass
 class CCDDataset:
@@ -1439,6 +1438,12 @@ def pull_and_clean_ccd_dataset(
             "geography": "Baltimore City",
             "k12_enrollment": record["enrollment"],
         })
+
+    if not rows:
+        raise ValueError(
+            f"No enrollment data returned for LEAID {dataset.leaid} "
+            f"(years {dataset.start_year}–{end_year})"
+        )
 
     df = pd.DataFrame(rows).sort_values("year").reset_index(drop=True)
 

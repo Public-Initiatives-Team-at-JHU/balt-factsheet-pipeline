@@ -334,3 +334,9 @@ class TestCCDDataset:
             df = pull_and_clean_ccd_dataset(ENROLLMENT_CCD, save=False)
 
         assert (df["geography"] == "Baltimore City").all()
+
+    def test_pull_and_clean_ccd_raises_on_empty_response(self):
+        with patch("src.pipelines.datasets.fetch_ccd_district_enrollment") as mock_fetch:
+            mock_fetch.return_value = []
+            with pytest.raises(ValueError, match="No enrollment data returned"):
+                pull_and_clean_ccd_dataset(ENROLLMENT_CCD, save=False)
