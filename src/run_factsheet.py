@@ -40,6 +40,7 @@ from src.pipelines.metrics import (
 )
 from src.pipelines.equity_datasets import (
     ALL_EQUITY_DATASETS,
+    build_equity_methodology_table,
     compute_equity_metrics,
     pull_equity_dataset,
 )
@@ -222,6 +223,13 @@ def run() -> dict:
         print(
             f"  {len(combined_long_df)} total rows "
             f"(aggregate + equity) → baltimore_factsheet_long.csv"
+        )
+
+        equity_metadata = build_equity_methodology_table()
+        save_processed(equity_metadata, "baltimore_factsheet_equity_metadata")
+        print(
+            f"  {len(equity_metadata)} equity indicator definitions "
+            f"→ baltimore_factsheet_equity_metadata.csv"
         )
     else:
         print("  WARNING: No equity datasets available — skipping equity output")

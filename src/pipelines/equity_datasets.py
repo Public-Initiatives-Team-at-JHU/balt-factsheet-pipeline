@@ -16,6 +16,24 @@ Census race-iteration naming convention:
 Only these four groups are included because Baltimore's other groups (AIAN, NHPI,
 other race, two or more races) are too small for reliable ACS 1-Year estimates.
 
+## Data suppression
+
+The Census Bureau suppresses ACS 1-Year estimates when sub-group sample sizes are
+too small to produce statistically reliable figures. For Baltimore City:
+
+  - Asian poverty rate (B17001D): SUPPRESSED in ACS 1-Year for all years.
+    Baltimore's Asian population (~13,000 people, ~2% of city) is too small
+    for reliable single-year poverty estimates. The B17001 table's age/sex
+    sub-categories further reduce per-cell sample sizes, triggering suppression.
+    The Census API returns null for both B17001D_001E and B17001D_002E.
+    ACS 5-Year estimates DO have this data (~21% poverty rate as of 2023).
+
+  - Other indicators (median income, homeownership) are available for Asian
+    because those tables are simpler (fewer sub-categories → larger cell counts).
+
+Blank values in the equity output for Asian poverty rate reflect Census suppression,
+not a pipeline error. See build_equity_methodology_table() for per-indicator caveats.
+
 Output schema: year | geography | indicator_id | indicator_name |
                demographic_group | value | source | source_url | last_updated
 """
@@ -211,7 +229,34 @@ def _homeownership_rate(row: pd.Series) -> float | None:
     return None
 
 
-# Each entry: (race_key, indicator_id, indicator_name, source_table_base, compute_fn, dataset_dict)
+_ACS1Y_SUPPRESSION_NOTE = (
+    "ACS 1-Year estimates are suppressed by the Census Bureau when sub-group "
+    "sample sizes are too small to produce statistically reliable figures. "
+    "Suppressed values appear as blank in the output."
+)
+
+# Suppression notes per indicator per race group (only entries that differ from the base caveat)
+_SUPPRESSION_OVERRIDES: dict[tuple[str, str], str] = {
+    ("poverty_rate_{key}", "asian"): (
+        "SUPPRESSED — Census ACS 1-Year does not publish poverty estimates for the Asian "
+        "population in Baltimore City. The Asian sub-population (~13,000 people, ~2% of city) "
+        "is too small for reliable single-year estimates; the B17001 table's detailed age/sex "
+        "sub-categories further reduce cell sizes, triggering suppression. The Census API returns "
+        "null for B17001D_001E and B17001D_002E for all years. "
+        "ACS 5-Year estimates do have this data (e.g., ~21% poverty rate for 2019–2023). "
+        + _ACS1Y_SUPPRESSION_NOTE
+    ),
+}
+
+_BASE_EQUITY_CAVEATS = (
+    "Race/ethnicity breakdowns use ACS 1-Year race-iteration tables. "
+    "Values reflect the race of the householder (for income and homeownership) "
+    "or the individual (for poverty), not the race of all household members. "
+    + _ACS1Y_SUPPRESSION_NOTE
+    + " 2020 ACS 1-Year was not released due to COVID data collection issues."
+)
+
+# Each entry: (id_template, indicator_name, source_table_base, compute_fn, dataset_dict, unit, formula_description)
 _EQUITY_METRIC_SPECS = [
     (
         "poverty_rate_{key}",
@@ -220,6 +265,7 @@ _EQUITY_METRIC_SPECS = [
         _poverty_rate,
         POVERTY_BY_RACE,
         "percent",
+        "B17001{suffix}_002E (below poverty) / B17001{suffix}_001E (poverty universe) × 100",
     ),
     (
         "median_hh_income_{key}",
@@ -228,6 +274,7 @@ _EQUITY_METRIC_SPECS = [
         _direct("median_household_income"),
         INCOME_BY_RACE,
         "dollars",
+        "Direct read of B19013{suffix}_001E (median household income, race-iteration table)",
     ),
     (
         "homeownership_rate_{key}",
@@ -236,6 +283,7 @@ _EQUITY_METRIC_SPECS = [
         _homeownership_rate,
         TENURE_BY_RACE,
         "percent",
+        "B25003{suffix}_002E (owner-occupied) / B25003{suffix}_001E (total occupied units) × 100",
     ),
 ]
 
@@ -254,7 +302,7 @@ def compute_equity_metrics(equity_datasets: dict[str, pd.DataFrame]) -> pd.DataF
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     rows = []
 
-    for id_template, indicator_name, table_base, compute_fn, dataset_dict, unit in _EQUITY_METRIC_SPECS:
+    for id_template, indicator_name, table_base, compute_fn, dataset_dict, unit, _ in _EQUITY_METRIC_SPECS:
         source_url = f"{_ACS1Y_URL}.{table_base}"
         for race_key, (suffix, label) in RACE_GROUPS.items():
             dataset = dataset_dict[race_key]
@@ -281,3 +329,43 @@ def compute_equity_metrics(equity_datasets: dict[str, pd.DataFrame]) -> pd.DataF
                 })
 
     return pd.DataFrame(rows, columns=EQUITY_OUTPUT_COLUMNS)
+
+
+def build_equity_methodology_table() -> pd.DataFrame:
+    """Generate a methodology/caveats table for all equity indicators.
+
+    Produces one row per indicator × demographic_group combination, documenting
+    the formula, source table, and caveats — including Census suppression notes
+    where applicable (e.g., Asian poverty rate is suppressed in ACS 1-Year).
+
+    Returns:
+        DataFrame with columns matching the equity methodology schema.
+    """
+    from datetime import date
+    today = date.today().isoformat()
+    rows = []
+
+    for id_template, indicator_name, table_base, _, dataset_dict, unit, formula_template in _EQUITY_METRIC_SPECS:
+        source_url = f"{_ACS1Y_URL}.{table_base}"
+        for race_key, (suffix, label) in RACE_GROUPS.items():
+            indicator_id = id_template.replace("{key}", race_key)
+            formula = formula_template.replace("{suffix}", suffix)
+            source_table = f"{table_base}{suffix}"
+            caveats = _SUPPRESSION_OVERRIDES.get((id_template, race_key), _BASE_EQUITY_CAVEATS)
+
+            rows.append({
+                "indicator_id": indicator_id,
+                "indicator_name": indicator_name,
+                "demographic_group": label,
+                "source_table": source_table,
+                "formula": formula,
+                "source_name": _ACS_SOURCE,
+                "source_url": source_url,
+                "unit": unit,
+                "update_frequency": "annual",
+                "geographic_level": "city",
+                "caveats": caveats,
+                "last_verified": today,
+            })
+
+    return pd.DataFrame(rows)
