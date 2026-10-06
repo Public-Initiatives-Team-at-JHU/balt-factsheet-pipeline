@@ -36,7 +36,12 @@ def _responder(published_years):
     def fake_get(url, **kwargs):
         year = int(url.rstrip(".json").split("/data/")[1].split("/")[0])
         resp = requests.Response()
-        resp.status_code = 200 if year in published_years else 404
+        if year in published_years:
+            resp.status_code = 200
+            resp.headers["content-type"] = "application/json;charset=utf-8"
+        else:
+            resp.status_code = 404
+            resp.headers["content-type"] = "text/html;charset=ISO-8859-1"
         return resp
     return fake_get
 

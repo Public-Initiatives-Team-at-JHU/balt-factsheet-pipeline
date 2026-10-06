@@ -84,7 +84,7 @@ COUNTY_FIPS_FULL = "24510"  # Combined for BLS queries
 # Census API
 CENSUS_API_BASE = "https://api.census.gov/data/{year}/acs/acs5"
 CENSUS_PEP_BASE = "https://api.census.gov/data/{year}/pep/population"
-CENSUS_API_KEY = ""      # Get at api.census.gov/data/key_signup.html — optional but recommended
+CENSUS_API_KEY = ""      # REQUIRED (env var) — Census rejects keyless requests with an HTML "Missing Key" page. Get at api.census.gov/data/key_signup.html
 
 # BLS API
 BLS_API_BASE = "https://api.bls.gov/publicAPI/v2/timeseries/data/"

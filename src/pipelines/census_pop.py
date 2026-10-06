@@ -34,6 +34,7 @@ from src.utils.config import (
     COUNTY_FIPS,
     STATE_FIPS,
 )
+from src.pipelines.census_acs import census_json
 
 
 def fetch_pep_population(vintage_year: int) -> list[list[str]]:
@@ -65,8 +66,7 @@ def fetch_pep_population(vintage_year: int) -> list[list[str]]:
         params["key"] = CENSUS_API_KEY
 
     resp = requests.get(url, params=params, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+    return census_json(resp)
 
 
 def parse_pep_year(date_desc: str) -> int | None:

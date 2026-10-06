@@ -10,8 +10,8 @@ New to this code? Settings you might actually change:
   environment variable, e.g. `ACS1_VINTAGE=2024 python3 -m src.run_factsheet`.
 - PEP_LATEST_VINTAGE: bump this when Census publishes a new population
   estimates vintage.
-- API keys: never put keys in this file. Set CENSUS_API_KEY / BLS_API_KEY
-  as environment variables (see README).
+- API keys: never put keys in this file. Set CENSUS_API_KEY (required) and
+  BLS_API_KEY (optional) as environment variables (see README).
 """
 
 import functools
@@ -134,7 +134,9 @@ def latest_acs_vintage(dataset: str = "acs1") -> int:
             )
             return fallback
 
-        if resp.status_code == 200:
+        # Require real JSON: Census serves some errors (e.g. "Missing Key") as
+        # an HTML page with status 200, which must not count as "published".
+        if resp.status_code == 200 and "json" in resp.headers.get("content-type", ""):
             logger.info("%s vintage resolved to %d", dataset, year)
             return year
 

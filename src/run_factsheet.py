@@ -50,6 +50,7 @@ from src.pipelines.equity_datasets import (
     compute_equity_metrics,
     pull_equity_dataset,
 )
+from src.pipelines.census_acs import require_census_key
 from src.utils.config import PROCESSED_DIR
 from src.utils.io import save_processed
 from src.utils.provenance import add_provenance, check_output_dir, pipeline_version
@@ -80,6 +81,7 @@ def run() -> dict:
     print("=" * 60)
     print("Baltimore Fact Sheet Pipeline")
     print("=" * 60)
+    require_census_key()
     check_output_dir(PROCESSED_DIR)
     print(f"Outputs will be written to: {PROCESSED_DIR}")
     print(f"Code version: {pipeline_version()}")

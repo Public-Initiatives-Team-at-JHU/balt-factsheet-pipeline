@@ -13,6 +13,9 @@ Variable lookup: https://api.census.gov/data/{year}/acs/acs1/groups.html
 
 from __future__ import annotations
 
+import html
+import re
+
 import requests
 
 from src.utils.config import (
@@ -23,6 +26,63 @@ from src.utils.config import (
     COUNTY_FIPS,
     STATE_FIPS,
 )
+
+CENSUS_KEY_SIGNUP_URL = "https://api.census.gov/data/key_signup.html"
+
+
+class CensusAPIError(RuntimeError):
+    """The Census API returned something other than data."""
+
+
+def require_census_key() -> None:
+    """Fail before downloading anything if no Census API key is set.
+
+    Census requires a key on every data request. Without one it returns a
+    "Missing Key" web page instead of data.
+    """
+    if not CENSUS_API_KEY:
+        raise CensusAPIError(
+            "No Census API key found. Census requires a free key for every data "
+            f"request. Get one at {CENSUS_KEY_SIGNUP_URL} (it arrives by email; "
+            "click the activation link), then run:\n"
+            '    export CENSUS_API_KEY="your-key"\n'
+            "and run the pipeline again."
+        )
+
+
+def census_json(resp: requests.Response):
+    """Return the data from a Census API response, or explain what went wrong.
+
+    Census answers key problems and some outages with an HTML page and HTTP
+    200, so a status check alone doesn't catch them; parsing that page as
+    data fails with the unhelpful "Expecting value: line 1 column 1".
+    """
+    resp.raise_for_status()
+    try:
+        return resp.json()
+    except ValueError:
+        pass
+
+    match = re.search(r"<title>(.*?)</title>", resp.text, re.IGNORECASE | re.DOTALL)
+    title = html.unescape(match.group(1)).strip() if match else ""
+
+    if "missing key" in title.lower():
+        raise CensusAPIError(
+            "Census rejected the request: no API key was sent. Set the "
+            "CENSUS_API_KEY environment variable to your Census key (free at "
+            f"{CENSUS_KEY_SIGNUP_URL}) and run again."
+        )
+    if "invalid key" in title.lower():
+        raise CensusAPIError(
+            "Census rejected the request: the API key is invalid. Check that "
+            "CENSUS_API_KEY matches the key Census emailed you, and that you "
+            f"clicked the activation link in that email. New keys: {CENSUS_KEY_SIGNUP_URL}"
+        )
+    detail = title or resp.text[:200].strip()
+    raise CensusAPIError(
+        f"Census API returned a web page instead of data ({detail!r}). "
+        "The service may be down; wait a bit and try again."
+    )
 
 
 def fetch_acs_city(variables: list[str], year: int) -> list[list[str]]:
@@ -62,8 +122,7 @@ def fetch_acs_city(variables: list[str], year: int) -> list[list[str]]:
         params["key"] = CENSUS_API_KEY
 
     resp = requests.get(url, params=params, timeout=120)
-    resp.raise_for_status()
-    return resp.json()
+    return census_json(resp)
 
 
 def fetch_acs_tracts(variables: list[str], year: int) -> list[list[str]]:
@@ -94,8 +153,7 @@ def fetch_acs_tracts(variables: list[str], year: int) -> list[list[str]]:
         params["key"] = CENSUS_API_KEY
 
     resp = requests.get(url, params=params, timeout=120)
-    resp.raise_for_status()
-    return resp.json()
+    return census_json(resp)
 
 
 def verify_variables(table_id: str, variables: list[str], year: int) -> dict:
@@ -117,9 +175,8 @@ def verify_variables(table_id: str, variables: list[str], year: int) -> dict:
     """
     url = f"{CENSUS_ACS5_BASE.format(year=year)}/groups/{table_id}.json"
     resp = requests.get(url, timeout=30)
-    resp.raise_for_status()
 
-    group_data = resp.json()
+    group_data = census_json(resp)
     available = group_data.get("variables", {})
 
     valid = []

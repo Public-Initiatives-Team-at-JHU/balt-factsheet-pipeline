@@ -14,19 +14,21 @@ You need Python 3.9 or newer. In a terminal, from this folder:
 pip install -r requirements.txt
 ```
 
-**Optional, but recommended: free API keys.** The pipeline works without them, but keys raise the daily limits on how much data you can download.
+**API keys (free):**
 
-- Census: https://api.census.gov/data/key_signup.html
-- BLS: https://data.bls.gov/registrationEngine/
+- **Census: required.** Census requires a key on every data request. Sign up at https://api.census.gov/data/key_signup.html. The key arrives by email, and you must click the activation link in that email before it works.
+- **BLS: optional, but recommended.** The pipeline works without it, but a key raises BLS's daily download limit. Sign up at https://data.bls.gov/registrationEngine/.
 
-Each person should register their own keys. Then set them in your terminal before running:
+Each person should register their own keys. Set them in your terminal before running:
 
 ```bash
 export CENSUS_API_KEY="your-census-key"
 export BLS_API_KEY="your-bls-key"
 ```
 
-Never paste keys into the code or commit them to GitHub.
+To avoid retyping these every time, add both lines to your shell profile (`~/.zshrc` on a Mac), then open a new terminal window.
+
+If the Census key is missing or wrong, the run stops right away with a message saying which. Never paste keys into the code or commit them to GitHub.
 
 ## 2. Update the fact sheet
 
