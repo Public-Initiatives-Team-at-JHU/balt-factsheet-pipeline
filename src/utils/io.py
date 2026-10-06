@@ -33,14 +33,14 @@ def save_raw_response(
     - MSDE → data/raw/msde/
 
     Naming convention: {source}_{table}_{geo}_{year}_{timestamp}.json
-    Example: acs5_B01003_city_2023_20260302T143022.json
+    Example: acs1_B01003_city_2023_20260302T143022.json
 
     The timestamp is UTC so filenames sort chronologically and you never
     overwrite a previous pull of the same table.
 
     Args:
         data: Raw API response (list-of-lists from Census, dict from BLS, etc.)
-        source: Data source identifier (e.g. "acs5", "pep", "bls")
+        source: Data source identifier (e.g. "acs1", "pep", "bls")
         table: Table or series ID (e.g. "B01003", "LAUS")
         year: Vintage year or year range (e.g. 2023 or "2020-2023")
         geo: Geographic level (e.g. "city", "tracts")
@@ -79,7 +79,7 @@ def save_dataset(df: pd.DataFrame, name: str) -> Path:
 
     Args:
         df: Clean DataFrame with human-readable column names
-        name: Dataset name, e.g. "acs5_total_population"
+        name: Dataset name, e.g. "acs1_total_population"
 
     Returns:
         Path to the saved CSV.

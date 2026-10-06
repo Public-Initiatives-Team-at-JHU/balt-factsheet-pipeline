@@ -102,7 +102,7 @@ class ACSDataset:
         rows = [
             {
                 "column": "year",
-                "description": "ACS 5-Year vintage year (e.g. 2023 = 2019-2023 estimates)",
+                "description": "ACS 1-Year estimate year (e.g. 2023 = calendar year 2023)",
                 "census_variable": "",
                 "universe": "",
                 "notes": "",
@@ -162,7 +162,7 @@ def pull_and_clean_dataset(
         raw = fetch_acs_city(dataset.variables, year)
 
         # Layer 1: save raw API response
-        save_raw_response(raw, "acs5", dataset.table_id, year, geo="city")
+        save_raw_response(raw, "acs1", dataset.table_id, year, geo="city")
 
         # raw[0] = headers, raw[1] = data row (city-level = single row)
         headers = raw[0]
@@ -529,7 +529,7 @@ TOTAL_POPULATION = ACSDataset(
     table_id="B01003",
     name="total_population",
     title="Total Population",
-    description="Total population count for Baltimore City from ACS 5-Year estimates.",
+    description="Total population count for Baltimore City from ACS 1-Year estimates.",
     columns=[
         ColumnDef(
             census_variable="B01003_001E",

@@ -53,10 +53,10 @@ class Metric:
     name: str             # Display name, e.g. "Unemployment Rate"
     description: str      # What this metric measures
     compute: Callable     # (pd.Series) -> Optional[float]
-    source_dataset: str   # Which clean dataset file name (e.g. "acs5_employment_status")
+    source_dataset: str   # Which clean dataset file name (e.g. "acs1_employment_status")
     source_table: str     # Census table ID (e.g. "B23025")
     formula_description: str  # Plain English formula
-    source_name: str      # e.g. "ACS 5-Year Estimates"
+    source_name: str      # e.g. "ACS 1-Year Estimates"
     source_url: str       # Link to data.census.gov table
     unit: str             # "count", "percent", "dollars", "ratio"
     update_frequency: str  # "annual", "monthly", etc.
@@ -73,7 +73,7 @@ def compute_all_metrics(
 
     Args:
         metrics: List of Metric definitions to compute
-        datasets: Dict mapping dataset file names (e.g. "acs5_total_population")
+        datasets: Dict mapping dataset file names (e.g. "acs1_total_population")
                   to their clean DataFrames
 
     Returns:
