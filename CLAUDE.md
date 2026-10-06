@@ -43,7 +43,7 @@ Entry point: `python -m src.run_factsheet` runs the full Phase 1 fact sheet pipe
 src/
   run_factsheet.py       # Batch runner: pull datasets → compute metrics → write outputs
   pipelines/
-    bls.py               # BLS LAUS API (monthly unemployment)
+    bls.py               # BLS time-series API: LAUS unemployment, QCEW private-sector jobs
     census_acs.py        # Census ACS API fetch + variable verification (city and tract)
     census_pop.py        # Census Population Estimates Program (annual population)
     datasets.py          # Dataset definitions; pull + clean ACS and BLS datasets

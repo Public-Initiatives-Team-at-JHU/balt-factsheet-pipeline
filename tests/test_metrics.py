@@ -308,4 +308,6 @@ class TestAcsSourceUrlVintage:
         bls = result[result["source_name"].str.contains("Bureau of Labor|BLS", na=False)]
 
         assert not bls.empty, "expected a BLS metric in the fact sheet"
-        assert all(u == "https://www.bls.gov/lau/" for u in bls["source_url"])
+        declared = {m.id: m.source_url for m in ALL_FACTSHEET_METRICS}
+        for _, row in bls.iterrows():
+            assert row["source_url"] == declared[row["indicator_id"]]

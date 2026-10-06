@@ -108,10 +108,13 @@ To see that exact code, go to `<pipeline_repo>/commit/<pipeline_version>`. If th
 |--------|---------|-------------------|
 | Census ACS 1-Year | Population, income, poverty, education, housing, race/ethnicity | Every September (covers the prior year) |
 | Census Population Estimates | Annual population estimate | Every spring (city/county estimates) |
-| BLS | Unemployment rate | Monthly |
+| BLS Local Area Unemployment Statistics | Unemployment rate | Monthly |
+| BLS Quarterly Census of Employment and Wages | Private-sector jobs | Quarterly, about 5–6 months after each quarter |
 | Baltimore Police (Open Baltimore) | Crime rates, homicides | Ongoing |
 | MSDE Report Card | School ratings and accountability scores | Annually, in winter |
 | NCES (via Urban Institute) | K-12 enrollment | Annually |
+
+Annual figures from monthly BLS data appear only once a year is complete (December published). Until then the current year is left off rather than shown as a partial-year average.
 
 The pipeline detects the newest Census year on its own. You don't need to change any settings when new ACS data comes out.
 
@@ -196,6 +199,7 @@ archive/               Development history: verification reports and one-off scr
 - **Census American Community Survey (ACS) 1-Year:** city-level demographics, income, poverty, education, housing. https://www.census.gov/programs-surveys/acs
 - **Census Population Estimates Program:** official annual population estimates. https://www.census.gov/programs-surveys/popest.html
 - **BLS Local Area Unemployment Statistics:** monthly unemployment rate. https://www.bls.gov/lau/
+- **BLS Quarterly Census of Employment and Wages (QCEW):** private-sector jobs located in Baltimore City, all industries. Counts jobs by workplace (including commuters into the city), not employed residents. https://www.bls.gov/cew/
 - **Open Baltimore, BPD crime data:** Part 1 crime (older SRS system, through 2024) and NIBRS (2022 onward; the two overlap in 2022–2024 for comparison). https://data.baltimorecity.gov/
 - **Maryland State Department of Education Report Card:** school ratings. https://reportcard.msde.maryland.gov/ (details in `src/pipelines/README_MSDE.md`)
 - **NCES Common Core of Data:** K-12 enrollment, via the Urban Institute Education Data API. https://educationdata.urban.org/

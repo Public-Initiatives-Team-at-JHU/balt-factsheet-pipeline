@@ -24,6 +24,7 @@ from src.pipelines.datasets import (
     CRIME_PART1,
     CRIME_NIBRS_GROUPA,
     ENROLLMENT_CCD,
+    QCEW_PRIVATE_EMPLOYMENT,
     UNEMPLOYMENT_LAUS,
     pull_and_clean_bls_dataset,
     pull_and_clean_ccd_dataset,
@@ -92,17 +93,18 @@ def run() -> dict:
         datasets[dataset_def.file_name] = df
         print(f"{len(df)} rows")
 
-    # Pull BLS LAUS unemployment data
-    print("\n--- Pulling BLS LAUS unemployment data ---")
-    print(f"  Pulling {UNEMPLOYMENT_LAUS.title} ({UNEMPLOYMENT_LAUS.series_id})...", end=" ")
-    try:
-        bls_df = pull_and_clean_bls_dataset(UNEMPLOYMENT_LAUS, save=True)
-        datasets[UNEMPLOYMENT_LAUS.file_name] = bls_df
-        print(f"{len(bls_df)} rows")
-    except Exception as e:
-        print(f"FAILED: {e}")
-        print("  WARNING: Continuing without BLS unemployment data")
-        # Pipeline continues with other datasets
+    # Pull BLS data: LAUS unemployment and QCEW private-sector jobs
+    print("\n--- Pulling BLS data (LAUS unemployment, QCEW jobs) ---")
+    for bls_dataset in (UNEMPLOYMENT_LAUS, QCEW_PRIVATE_EMPLOYMENT):
+        print(f"  Pulling {bls_dataset.title} ({bls_dataset.series_id})...", end=" ")
+        try:
+            bls_df = pull_and_clean_bls_dataset(bls_dataset, save=True)
+            datasets[bls_dataset.file_name] = bls_df
+            print(f"{len(bls_df)} rows")
+        except Exception as e:
+            # Pipeline continues with other datasets
+            print(f"FAILED: {e}")
+            print(f"  WARNING: Continuing without {bls_dataset.title}")
 
     # Pull Open Baltimore crime data (SRS legacy)
     print("\n--- Pulling Open Baltimore crime data (SRS) ---")

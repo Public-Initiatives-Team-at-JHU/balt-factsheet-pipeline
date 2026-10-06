@@ -269,8 +269,47 @@ UNEMPLOYMENT_RATE_BLS_METRIC = Metric(
     update_frequency="monthly (aggregated to annual)",
     caveats=(
         "Monthly estimates are not seasonally adjusted. "
-        "Annual value is the arithmetic mean of 12 monthly observations. "
+        "Annual value is the arithmetic mean of the year's monthly observations; "
+        "the current year appears only once December is published. "
+        "2025 averages 11 months: BLS did not publish October 2025 because of "
+        "the federal government shutdown. "
         "BLS LAUS is the authoritative source for unemployment rates."
+    ),
+)
+
+PRIVATE_JOBS_QCEW_METRIC = Metric(
+    id="private_jobs_qcew",
+    name="Private-Sector Jobs",
+    description=(
+        "Number of private-sector jobs located in Baltimore City, all industries "
+        "(annual average)"
+    ),
+    compute=lambda row: (
+        round(row["annual_private_employment"])
+        if pd.notna(row["annual_private_employment"])
+        else None
+    ),
+    source_dataset="bls_qcew_private_employment",
+    source_table="QCEW",
+    formula_description=(
+        "Annual average of BLS QCEW monthly employment, rounded to whole jobs "
+        "(matches the BLS published annual average). "
+        "Series ID: ENU2451010510 (Baltimore City, private ownership, all industries)."
+    ),
+    source_name="BLS Quarterly Census of Employment and Wages",
+    source_url=(
+        "https://data.bls.gov/cew/apps/table_maker/v4/table_maker.htm"
+        "#type=5&year=2025&qtr=A&own=5&area=24510&supp=0"
+    ),
+    unit="count",
+    update_frequency="quarterly (aggregated to annual)",
+    caveats=(
+        "Counts jobs at Baltimore City workplaces, including people who commute "
+        "in, not the number of employed city residents (see BLS LAUS for that). "
+        "Excludes government jobs, the self-employed, and other workers not "
+        "covered by unemployment insurance. A person with two jobs counts twice. "
+        "Published about 5-6 months after each quarter; the current year appears "
+        "only once all 12 months are released."
     ),
 )
 
@@ -944,6 +983,7 @@ ALL_FACTSHEET_METRICS = [
     # Economic
     MEDIAN_HOUSEHOLD_INCOME_METRIC,
     UNEMPLOYMENT_RATE_BLS_METRIC,
+    PRIVATE_JOBS_QCEW_METRIC,
     POVERTY_RATE_METRIC,
     # Education
     BACHELORS_PLUS_METRIC,

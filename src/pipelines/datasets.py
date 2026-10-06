@@ -262,17 +262,21 @@ def _to_numeric(value):
 
 @dataclass
 class BLSDataset:
-    """Declarative definition for a BLS LAUS dataset.
+    """Declarative definition for a monthly BLS time series.
 
-    Similar to ACSDataset but for BLS Local Area Unemployment Statistics.
+    Used for Local Area Unemployment Statistics (LAUS) and the Quarterly
+    Census of Employment and Wages (QCEW). Both come from the same BLS API.
     """
 
-    series_id: str      # e.g. "LAUST245100000000003"
+    series_id: str      # e.g. "LAUCN245100000000003"
     name: str           # Short name for file naming
     title: str          # Human-readable title
     description: str    # What this dataset covers
     measure: str        # What this measures (e.g., "unemployment_rate")
     start_year: int = 2005
+    program: str = "LAUS"   # BLS program, used to label raw files ("LAUS", "QCEW")
+    unit_label: str = "%"   # Unit shown in the data dictionary ("%", "jobs")
+    seasonal_note: str = "Not seasonally adjusted"
 
     @property
     def file_name(self) -> str:
@@ -303,15 +307,24 @@ class BLSDataset:
             },
             {
                 "column": f"monthly_{self.measure}",
-                "description": f"Monthly {self.measure.replace('_', ' ')} (%)",
+                "description": f"Monthly {self.measure.replace('_', ' ')} ({self.unit_label})",
                 "bls_series": self.series_id,
-                "notes": "Not seasonally adjusted",
+                "notes": self.seasonal_note,
             },
             {
                 "column": f"annual_{self.measure}",
-                "description": f"Annual average {self.measure.replace('_', ' ')} (%)",
+                "description": f"Annual average {self.measure.replace('_', ' ')} ({self.unit_label})",
                 "bls_series": "",
-                "notes": "Mean of 12 monthly observations",
+                "notes": (
+                    "Mean of the year's published monthly values. Only years with "
+                    "December published are included (no partial years)."
+                ),
+            },
+            {
+                "column": "months_reported",
+                "description": "Number of monthly values in the annual average",
+                "bls_series": "",
+                "notes": "Normally 12. Fewer means BLS did not publish some months.",
             },
         ]
 
@@ -320,14 +333,16 @@ def pull_and_clean_bls_dataset(
     dataset: BLSDataset,
     save: bool = True,
 ) -> pd.DataFrame:
-    """Fetch BLS LAUS data, clean it, and optionally save to disk.
+    """Fetch a monthly BLS series (LAUS or QCEW), clean it, and optionally save.
 
     Process:
     1. Calls the BLS API for monthly data
     2. Saves the raw JSON response (Layer 1)
     3. Parses monthly data points
-    4. Converts string values to numeric
-    5. Computes annual averages (mean of 12 monthly values)
+    4. Converts string values to numeric ("-" = not published → missing)
+    5. Computes annual averages for complete years only. A year is complete
+       once December is published, so the in-progress year is never shown
+       as an annual figure.
     6. Assembles into a DataFrame with both monthly and annual data
 
     Args:
@@ -344,7 +359,7 @@ def pull_and_clean_bls_dataset(
 
     # Layer 1: save raw API response
     save_raw_response(
-        raw, "bls", "LAUS", f"{dataset.start_year}-{end_year}", geo="city"
+        raw, "bls", dataset.program, f"{dataset.start_year}-{end_year}", geo="city"
     )
 
     # Parse monthly data points
@@ -374,19 +389,26 @@ def pull_and_clean_bls_dataset(
 
     monthly_df = pd.DataFrame(rows)
 
-    # Compute annual averages (mean of 12 monthly values per year)
+    # Compute annual averages for complete years only (December published).
+    # Averaging Jan-Feb alone would misstate the year, especially for data that
+    # isn't seasonally adjusted. Missing months (e.g. Oct 2025, unpublished
+    # during the federal shutdown) are skipped and counted in months_reported.
+    value_col = f"monthly_{dataset.measure}"
+    reported = monthly_df.dropna(subset=[value_col])
+    complete_years = reported.loc[reported["month"] == 12, "year"].unique()
     annual_df = (
-        monthly_df.groupby("year")[f"monthly_{dataset.measure}"]
-        .mean()
+        reported[reported["year"].isin(complete_years)]
+        .groupby("year")[value_col]
+        .agg(["mean", "count"])
         .reset_index()
-        .rename(columns={f"monthly_{dataset.measure}": f"annual_{dataset.measure}"})
+        .rename(columns={"mean": f"annual_{dataset.measure}", "count": "months_reported"})
     )
 
     # Add geography column
     annual_df["geography"] = "Baltimore City"
 
     # Reorder columns
-    annual_df = annual_df[["year", "geography", f"annual_{dataset.measure}"]]
+    annual_df = annual_df[["year", "geography", f"annual_{dataset.measure}", "months_reported"]]
 
     # Sort by year
     annual_df = annual_df.sort_values("year").reset_index(drop=True)
@@ -1022,6 +1044,24 @@ UNEMPLOYMENT_LAUS = BLSDataset(
     ),
     measure="unemployment_rate",
     start_year=2005,
+)
+
+QCEW_PRIVATE_EMPLOYMENT = BLSDataset(
+    # ENU + area 24510 + datatype 1 (employment) + size 0
+    # + ownership 5 (private) + industry 10 (total, all industries)
+    series_id="ENU2451010510",
+    name="qcew_private_employment",
+    title="Private-Sector Jobs (BLS QCEW)",
+    description=(
+        "Monthly private-sector employment at Baltimore City workplaces, all "
+        "industries, from the BLS Quarterly Census of Employment and Wages. "
+        "Annual values are averages of the 12 monthly counts."
+    ),
+    measure="private_employment",
+    start_year=2005,
+    program="QCEW",
+    unit_label="jobs",
+    seasonal_note="Not seasonally adjusted. Counts jobs by workplace, not residence.",
 )
 
 ALL_FACTSHEET_DATASETS.extend([
