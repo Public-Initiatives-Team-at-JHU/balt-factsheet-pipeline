@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Maryland State Department of Education (MSDE) Report Card data pipeline.
 
@@ -12,6 +10,8 @@ Download page: https://reportcard.msde.maryland.gov/Graphs/#/DataDownloads/datad
 NOTE: File downloads use numeric IDs, not year-based URLs. The download function
 automatically discovers available years by testing ID ranges.
 """
+
+from __future__ import annotations
 
 import io
 import zipfile

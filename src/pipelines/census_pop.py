@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Census Population Estimates Program (PEP) API client.
 
@@ -25,6 +23,8 @@ so the logic stays correct as new vintage years are added.
 Census PEP docs:   https://www.census.gov/data/developers/data-sets/popest-popproj/popest.html
 PEP variables:     https://api.census.gov/data/{year}/pep/population/variables.html
 """
+
+from __future__ import annotations
 
 import requests
 

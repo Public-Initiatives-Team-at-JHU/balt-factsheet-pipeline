@@ -8,6 +8,11 @@ Runs the full pipeline end-to-end:
 
 Usage:
     python3 -m src.run_factsheet
+
+New to this code? This is the file that runs everything. You normally don't
+need to edit it: to change WHAT the fact sheet shows, edit
+src/pipelines/metrics.py (the numbers) or src/pipelines/datasets.py (the
+source tables). The outputs Power BI reads land in data/processed/.
 """
 from __future__ import annotations
 

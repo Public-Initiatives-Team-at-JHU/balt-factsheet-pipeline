@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 I/O utilities for the three-layer data architecture.
 
@@ -7,6 +5,8 @@ Layer 1 (raw):       save_raw_response  → data/raw/
 Layer 2 (datasets):  save_dataset       → data/datasets/
 Layer 3 (processed): save_processed     → data/processed/
 """
+
+from __future__ import annotations
 
 import json
 from datetime import datetime, timezone

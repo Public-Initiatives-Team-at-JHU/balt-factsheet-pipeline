@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Open Baltimore crime data client — ArcGIS FeatureServer.
 
@@ -20,6 +18,8 @@ during the transition period.
 ArcGIS REST API docs: https://developers.arcgis.com/rest/services-reference/
 Open Baltimore Hub:   https://data.baltimorecity.gov
 """
+
+from __future__ import annotations
 
 import requests
 

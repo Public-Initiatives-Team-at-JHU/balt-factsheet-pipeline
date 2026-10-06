@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 NCES Common Core of Data (CCD) enrollment pipeline.
 
@@ -12,6 +10,8 @@ Docs: https://educationdata.urban.org/api/v1/school-districts/ccd/directory/
 Year convention: NCES uses school-year start year (2022 = SY 2022-23).
 Callers convert to ending year (+1) for storage.
 """
+
+from __future__ import annotations
 
 import requests
 

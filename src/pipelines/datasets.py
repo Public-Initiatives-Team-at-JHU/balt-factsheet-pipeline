@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Clean dataset definitions and processing for Census ACS tables.
 
@@ -10,7 +8,18 @@ Adding a new dataset is adding data, not writing pipeline code.
 The pull_and_clean_dataset() function fetches data across multiple years,
 renames columns to human-readable names, and produces a clean DataFrame
 ready for analysis or metric computation.
+
+New to this code? Start here:
+- Each source table is one definition block below (e.g. `POVERTY_STATUS =
+  ACSDataset(...)`). It lists which Census variables are pulled and gives
+  each column a readable name and description.
+- The ColumnDef `name` values are the column names you'll see in
+  data/datasets/*.csv and that metrics.py uses in its formulas.
+- The longer functions (pull_and_clean_*) are the machinery that downloads
+  and cleans the data. You shouldn't need to change them to add a table.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime

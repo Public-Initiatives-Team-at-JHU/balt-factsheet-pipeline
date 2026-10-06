@@ -9,7 +9,7 @@ import numpy as np
 from pathlib import Path
 
 # Paths
-DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 DATASETS_DIR = DATA_DIR / "datasets"
 PROCESSED_DIR = DATA_DIR / "processed"
 

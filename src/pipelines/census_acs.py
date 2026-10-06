@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Census American Community Survey (ACS) API client.
 
@@ -12,6 +10,8 @@ and type conversion happen in the datasets layer.
 Census API docs: https://www.census.gov/data/developers/data-sets/acs-1year.html
 Variable lookup: https://api.census.gov/data/{year}/acs/acs1/groups.html
 """
+
+from __future__ import annotations
 
 import requests
 

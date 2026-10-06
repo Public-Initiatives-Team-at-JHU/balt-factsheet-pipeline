@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Race/ethnicity equity breakdowns for the Baltimore fact sheet.
 
@@ -37,6 +35,8 @@ not a pipeline error. See build_equity_methodology_table() for per-indicator cav
 Output schema: year | geography | indicator_id | indicator_name |
                demographic_group | value | source | source_url | last_updated
 """
+
+from __future__ import annotations
 
 from datetime import datetime, timezone
 

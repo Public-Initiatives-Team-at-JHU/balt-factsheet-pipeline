@@ -3,6 +3,15 @@ Central configuration for JHU Public Impact data pipelines.
 
 All constants, API endpoints, FIPS codes, and file paths live here.
 When migrating to Azure Data Lake, swap the paths — no pipeline code changes needed.
+
+New to this code? Settings you might actually change:
+- ACS year: detected automatically from the Census API (see
+  latest_acs_vintage). To force a specific year, set the ACS1_VINTAGE
+  environment variable, e.g. `ACS1_VINTAGE=2024 python3 -m src.run_factsheet`.
+- PEP_LATEST_VINTAGE: bump this when Census publishes a new population
+  estimates vintage.
+- API keys: never put keys in this file. Set CENSUS_API_KEY / BLS_API_KEY
+  as environment variables (see README).
 """
 
 import functools

@@ -56,7 +56,8 @@ src/
     config.py            # FIPS codes, API keys (from env vars), ACS vintage resolution
     io.py                # Save raw responses, datasets, data dictionaries, processed outputs
     validation.py        # Data quality checks for datasets and metrics
-scripts/                 # One-off utilities: plotting, re-computing, regenerating from cache
+scripts/                 # plot_factsheet.py: trend charts → data/visualizations/
+archive/                 # Development history: verification reports, one-off scripts (not used by pipeline)
 tests/                   # pytest suite
 data/
   raw/                   # Raw API responses (gitignored)

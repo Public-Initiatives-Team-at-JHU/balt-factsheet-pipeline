@@ -1,197 +1,124 @@
-# JHU Public Impact Data Pipelines
+# Baltimore Fact Sheet Data Pipeline
 
-Data pipelines for the JHU Public Impact Initiatives team's internal dashboard. Pulls public data about Baltimore City from Census, BLS, MSDE, and other federal/state/local sources, producing clean datasets and computed metrics for Power BI dashboards on SharePoint.
+This code automatically pulls public data about Baltimore City from Census, BLS, the Maryland State Department of Education, Baltimore Police and federal education data, and turns it into a set of fact sheet numbers (population, poverty, unemployment, crime, housing, schools and more). The results are CSV files that the Public Impact Initiatives Power BI dashboard reads.
 
-## Quick Start
+**You don't need to read the code to use it.** Most of the time you'll run one command and refresh Power BI.
+
+---
+
+## 1. One-time setup
+
+You need Python 3.9 or newer. In a terminal, from this folder:
 
 ```bash
-# Install dependencies
-pip install requests pandas
+pip install -r requirements.txt
+```
 
-# Run the fact sheet pipeline (once built — Step 8)
-python -m src.run_factsheet
+**Optional, but recommended: free API keys.** The pipeline works without them, but keys raise the daily limits on how much data you can download.
 
-# Run tests
-pip install pytest
+- Census: https://api.census.gov/data/key_signup.html
+- BLS: https://data.bls.gov/registrationEngine/
+
+Each person should register their own keys. Then set them in your terminal before running:
+
+```bash
+export CENSUS_API_KEY="your-census-key"
+export BLS_API_KEY="your-bls-key"
+```
+
+Never paste keys into the code or commit them to GitHub.
+
+## 2. Update the fact sheet
+
+```bash
+python3 -m src.run_factsheet
+```
+
+This takes a few minutes. It downloads the latest data, recalculates every metric, checks the results, and prints a summary. At the end, look for the **"Validating outputs"** line:
+
+- `All validation checks passed.` means you're good to go.
+- If it lists **ERROR** lines, don't publish the new numbers yet. Something in the source data looks wrong (missing years, impossible values). **WARN** lines are worth reading but usually fine.
+
+If a Census download fails, the run stops with an `ERROR`. Census is the core of the fact sheet, so wait a bit and run it again. If any other source is temporarily down (BLS, crime, schools), the run prints `FAILED` for that source and keeps going without it.
+
+**Optional:** regenerate the trend charts in `data/visualizations/`:
+
+```bash
+python3 scripts/plot_factsheet.py
+```
+
+## 3. Where the results go
+
+Everything Power BI needs is in `data/processed/`:
+
+| File | What's in it |
+|------|--------------|
+| `baltimore_factsheet.csv` | The fact sheet: one row per year, one column per metric |
+| `baltimore_factsheet_long.csv` | The same numbers in "long" format (one row per metric per year), plus breakdowns by race/ethnicity |
+| `baltimore_factsheet_metadata.csv` | For every metric: plain-English definition, formula, source, link and caveats |
+| `baltimore_factsheet_equity_metadata.csv` | The same, for the race/ethnicity breakdowns |
+
+The metadata files are the place to answer "where does this number come from?"
+
+Two other folders are useful if you want to dig in:
+
+- `data/datasets/`: the cleaned source data, one CSV per table, each with a `_data_dictionary.csv` explaining every column. Fine to use for your own analysis.
+- `data/raw/`: the exact data each source sent back, saved with timestamps. If a number ever looks wrong, this is where to trace it.
+
+## 4. When to update
+
+| Source | Metrics | New data released |
+|--------|---------|-------------------|
+| Census ACS 1-Year | Population, income, poverty, education, housing, race/ethnicity | Every September (covers the prior year) |
+| Census Population Estimates | Annual population estimate | Every spring (city/county estimates) |
+| BLS | Unemployment rate | Monthly |
+| Baltimore Police (Open Baltimore) | Crime rates, homicides | Ongoing |
+| MSDE Report Card | School ratings and accountability scores | Annually, in winter |
+| NCES (via Urban Institute) | K-12 enrollment | Annually |
+
+The pipeline detects the newest Census year on its own. You don't need to change any settings when new ACS data comes out.
+
+> **Note (October 2026):** Census has not yet released the 2025 ACS data and hasn't announced a date, so ACS-based numbers currently stop at 2024. They'll update on the next run after Census publishes.
+
+## 5. Making changes
+
+Common changes, and where to make them:
+
+- **See exactly how a number is calculated:** open `src/pipelines/metrics.py` and search for the metric's name. Each metric is one block containing its formula, source and caveats.
+- **Add or remove a fact sheet metric:** in `src/pipelines/metrics.py`, copy a similar metric block and adjust it, then add it to (or remove it from) the `ALL_FACTSHEET_METRICS` list at the bottom of the file.
+- **Pull a new Census table:** add a definition block in `src/pipelines/datasets.py`, modeled on an existing one.
+- **Settings (years, keys):** `src/utils/config.py`.
+
+Each of these files starts with a short "New to this code?" note.
+
+**After any change, run the tests:**
+
+```bash
 pytest
 ```
 
-## Architecture
+The tests check that every calculation still produces the right answer. They use saved sample data, so they don't download anything. You don't need to read or edit them: if they all pass, your change didn't break anything. If some fail, the message names the metric or dataset that broke.
 
-Three-layer data pipeline, designed to map to Azure's medallion architecture when ready to migrate:
-
-```
-Census API  →  data/raw/       →  data/datasets/      →  data/processed/
-(Layer 1)      Raw JSON            Clean CSVs              Dashboard metrics
-               Audit trail         Reusable datasets       Fact sheet numbers
-                                   + data dictionaries     + methodology docs
-```
-
-**Layer 1 — Raw** (`data/raw/`): Exact API responses saved as JSON. Timestamped filenames so you never overwrite a previous pull. If a number looks wrong, trace it here.
-
-**Layer 2 — Clean datasets** (`data/datasets/`): One CSV per Census table with human-readable column names. Each CSV has a companion `_data_dictionary.csv` explaining every column. Anyone on the team can grab these for their own analysis without understanding the pipeline code.
-
-**Layer 3 — Computed metrics** (`data/processed/`): Dashboard-ready numbers in a flat table, plus a `methodology.csv` documenting every formula in plain English (designed to import as a Microsoft List on SharePoint).
-
-## Project Structure
+## Folder guide
 
 ```
-src/
-  pipelines/
-    census_acs.py       # Census ACS 1-Year API client
-    census_pop.py       # Census PEP (Population Estimates Program)
-    bls.py              # BLS LAUS (unemployment statistics)
-    open_baltimore.py   # Open Baltimore crime data
-    nibrs.py            # BPD NIBRS crime data (2022+)
-    msde_report_card.py # MSDE School Report Card data
-    datasets.py         # Clean dataset definitions (ACSDataset dataclass)
-    metrics.py          # Dashboard metric definitions (Metric dataclass)
-    README_MSDE.md      # Documentation for MSDE pipeline
-  utils/
-    config.py           # All constants: FIPS codes, API URLs, output schemas
-    io.py               # File I/O for all three data layers
-tests/
-  test_datasets.py      # 27 tests — dataset layer (mocked API calls)
-  test_metrics.py       # 21 tests — metric computation
-  test_io.py            # 11 tests — file I/O
-data/
-  raw/                  # Layer 1 (gitignored)
-  datasets/             # Layer 2 (gitignored)
-  processed/            # Layer 3 (gitignored)
-docs/
-  BNIA_Indicator_Data_Sources.xlsx  # 63-indicator reference
+src/run_factsheet.py   The one command that runs everything
+src/pipelines/         One file per data source, plus datasets.py and metrics.py
+src/utils/             Settings (config.py), file saving and quality checks
+scripts/               Chart generation
+tests/                 Automated checks (run with `pytest`)
+data/                  Downloaded and processed data
+docs/                  Reference files: BNIA indicator list, tract → CSA crosswalks
+archive/               Development history: verification reports and one-off scripts. Not needed day to day.
 ```
 
-## How It Works
+`CLAUDE.md` is detailed project context for developers and AI coding assistants, including the planned next phases (neighborhood-level data and JHU impact data).
 
-### 1. Define a dataset (what to pull)
+## Data sources
 
-Each Census table is defined as an `ACSDataset` dataclass in `datasets.py`:
-
-```python
-TOTAL_POPULATION = ACSDataset(
-    table_id="B01003",
-    name="total_population",
-    title="Total Population",
-    description="Total population count from ACS 5-Year estimates.",
-    columns=[
-        ColumnDef(
-            census_variable="B01003_001E",
-            name="total_population",
-            description="Total population estimate",
-            universe="Total population",
-        ),
-        ColumnDef(
-            census_variable="B01003_001M",
-            name="total_population_moe",
-            description="Margin of error",
-            universe="Total population",
-        ),
-    ],
-)
-```
-
-### 2. Pull and clean (raw API → clean CSV)
-
-```python
-from src.pipelines.datasets import TOTAL_POPULATION, pull_and_clean_dataset
-
-df = pull_and_clean_dataset(TOTAL_POPULATION, years=[2020, 2021, 2022, 2023])
-```
-
-This produces:
-- `data/raw/acs5_B01003_city_2023_*.json` (one per year)
-- `data/datasets/acs5_total_population.csv`
-- `data/datasets/acs5_total_population_data_dictionary.csv`
-
-### 3. Define a metric (how to compute the dashboard number)
-
-```python
-TOTAL_POPULATION_METRIC = Metric(
-    id="total_population",
-    name="Total Population",
-    description="Total population of Baltimore City",
-    compute=lambda row: row["total_population"],
-    source_dataset="acs5_total_population",
-    source_table="B01003",
-    formula_description="Direct read of B01003_001E",
-    ...
-)
-```
-
-### 4. Compute metrics (clean CSV → dashboard output)
-
-```python
-from src.pipelines.metrics import compute_all_metrics, build_methodology_table
-
-dashboard = compute_all_metrics([TOTAL_POPULATION_METRIC], {"acs5_total_population": df})
-methodology = build_methodology_table([TOTAL_POPULATION_METRIC])
-```
-
-## Configuration
-
-All constants live in `src/utils/config.py`:
-
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| `STATE_FIPS` | `"24"` | Maryland |
-| `COUNTY_FIPS` | `"510"` | Baltimore City (independent city) |
-| `ACS_YEARS` | `[2020, 2021, 2022, 2023]` | Vintage years to pull |
-| `CENSUS_API_KEY` | env `CENSUS_API_KEY` | Optional — higher rate limits |
-| `BLS_API_KEY` | env `BLS_API_KEY` | Optional — higher rate limits |
-
-## Data Sources
-
-### Census Bureau
-- **ACS 1-Year**: Population, demographics, income, employment, housing (2005-2024)
-- **PEP**: Annual population estimates (2020-2023)
-- API Key: https://api.census.gov/data/key_signup.html (optional, higher rate limits)
-
-### Bureau of Labor Statistics (BLS)
-- **LAUS**: Monthly unemployment rates (2005-present)
-- API Key: https://data.bls.gov/registrationEngine/ (optional, higher rate limits)
-
-### Maryland State Department of Education (MSDE)
-- **School Report Card**: Star ratings, accountability scores, performance indicators (2022-2025)
-- No API key required
-- Documentation: `src/pipelines/README_MSDE.md`
-
-### Open Baltimore
-- **Crime Data**: BPD Part 1 crimes (SRS: 2012-2024, NIBRS: 2022+)
-- No API key required
-
-Set API keys as environment variables:
-
-```bash
-export CENSUS_API_KEY="your-key-here"
-export BLS_API_KEY="your-key-here"
-```
-
-## Tests
-
-```bash
-pytest                    # run all 59 tests
-pytest tests/test_io.py   # just I/O tests
-pytest -v                 # verbose output
-```
-
-Tests mock all Census API calls — no network required, no rate limits consumed.
-
-## Build Progress
-
-| Step | Status | Description |
-|------|--------|-------------|
-| 1 | ✅ Done | Project skeleton, config, .gitignore |
-| 2 | ✅ Done | ACS API client (fetch city, tracts, verify variables) |
-| 3 | ✅ Done | Raw data saving (Layer 1 I/O) |
-| 4 | ✅ Done | Clean dataset layer + B01003 Total Population |
-| 5 | ✅ Done | Metric computation layer + Total Population metric |
-| 6 | ✅ Done | All ACS 1-Year indicators (11 tables, 17 metrics) |
-| 7 | ✅ Done | BLS LAUS unemployment pipeline |
-| 8 | ✅ Done | Open Baltimore crime pipeline (SRS + NIBRS) |
-| 9 | ✅ Done | Census PEP pipeline (annual population estimates) |
-| 10 | ✅ Done | **MSDE Report Card pipeline (school performance)** |
-| 11 | ✅ Done | Batch runner (`run_factsheet.py`) |
-| 12 | ✅ Done | Data validation framework |
-| 13 | Pending | Tract-level fetching (Phase 2 - neighborhood level) |
-| 14 | Pending | CSA aggregation (Phase 2) |
+- **Census American Community Survey (ACS) 1-Year:** city-level demographics, income, poverty, education, housing. https://www.census.gov/programs-surveys/acs
+- **Census Population Estimates Program:** official annual population estimates. https://www.census.gov/programs-surveys/popest.html
+- **BLS Local Area Unemployment Statistics:** monthly unemployment rate. https://www.bls.gov/lau/
+- **Open Baltimore, BPD crime data:** Part 1 crime (older SRS system, through 2024) and NIBRS (2022 onward; the two overlap in 2022–2024 for comparison). https://data.baltimorecity.gov/
+- **Maryland State Department of Education Report Card:** school ratings. https://reportcard.msde.maryland.gov/ (details in `src/pipelines/README_MSDE.md`)
+- **NCES Common Core of Data:** K-12 enrollment, via the Urban Institute Education Data API. https://educationdata.urban.org/

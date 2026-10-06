@@ -224,7 +224,7 @@ The crime dataset includes a `data_quality_flag` column indicating known issues:
 Run this validation script (`validate_factsheet.py`) after each data update:
 
 ```bash
-python3 validate_factsheet.py
+python3 archive/scripts/validate_factsheet.py
 ```
 
 The script automatically:
@@ -255,9 +255,9 @@ All tested metrics accurately reflect the documented formulas and source data. T
 ## Validation Script
 
 The validation script is available at:
-- `validate_factsheet.py` (repo root)
+- `archive/scripts/validate_factsheet.py`
 
-Run with: `python3 validate_factsheet.py`
+Run with: `python3 archive/scripts/validate_factsheet.py`
 
 Sample output shows:
 - ✅ 15/15 calculations verified (100%)

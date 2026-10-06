@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Dashboard metric definitions and computation.
 
@@ -13,7 +11,18 @@ The compute function and its documentation are co-located so you can't
 update one without seeing the other.
 
 Adding a new metric = adding a new Metric instance. No pipeline code changes.
+
+New to this code? Start here:
+- Every fact sheet number is one `Metric(...)` block below. Search for the
+  metric's name (e.g. "Poverty Rate") to see exactly how it's calculated,
+  where the data comes from, and any caveats.
+- ALL_FACTSHEET_METRICS (bottom of the file) is the list of metrics that
+  appear on the fact sheet. To add or drop one, edit that list.
+- To add a metric, copy an existing Metric block that's similar, change the
+  fields, and add it to ALL_FACTSHEET_METRICS. Then run the tests (`pytest`).
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone

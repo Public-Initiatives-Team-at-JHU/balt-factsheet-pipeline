@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Open Baltimore NIBRS crime data client — ArcGIS FeatureServer.
 
@@ -15,6 +13,8 @@ SRS for the same time period (~10.6% more offenses due to multi-offense incident
 
 ArcGIS REST API docs: https://developers.arcgis.com/rest/services-reference/
 """
+
+from __future__ import annotations
 
 from src.pipelines.open_baltimore import fetch_arcgis_query
 

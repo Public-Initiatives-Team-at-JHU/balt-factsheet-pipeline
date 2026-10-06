@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Bureau of Labor Statistics (BLS) API client.
 
@@ -10,6 +8,8 @@ BLS API docs: https://www.bls.gov/developers/
 Series ID reference: https://www.bls.gov/help/hlpforma.htm#LA
 LAUS overview: https://www.bls.gov/lau/
 """
+
+from __future__ import annotations
 
 import requests
 
