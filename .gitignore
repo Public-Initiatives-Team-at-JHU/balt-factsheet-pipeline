@@ -1,10 +1,10 @@
 # Data - ignore contents but keep directory structure via .gitkeep
-data/raw/*
-data/datasets/*
-data/processed/*
-!data/raw/.gitkeep
-!data/datasets/.gitkeep
-!data/processed/.gitkeep
+data/00 raw/*
+data/01 clean/*
+data/02 processed/*
+!data/00 raw/.gitkeep
+!data/01 clean/.gitkeep
+!data/02 processed/.gitkeep
 
 # Python
 __pycache__/

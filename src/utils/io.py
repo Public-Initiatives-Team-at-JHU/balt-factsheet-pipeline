@@ -1,9 +1,9 @@
 """
 I/O utilities for the three-layer data architecture.
 
-Layer 1 (raw):       save_raw_response  → data/raw/
-Layer 2 (datasets):  save_dataset       → data/datasets/
-Layer 3 (processed): save_processed     → data/processed/
+Layer 1 (raw):       save_raw_response  → data/00 raw/
+Layer 2 (datasets):  save_dataset       → data/01 clean/
+Layer 3 (processed): save_processed     → data/02 processed/
 """
 
 from __future__ import annotations
@@ -27,10 +27,10 @@ def save_raw_response(
     """Save a raw API response as JSON for audit trail.
 
     Files are organized into subdirectories by data source:
-    - Census (acs5, pep) → data/raw/census/
-    - BLS → data/raw/bls/
-    - Open Baltimore (open_baltimore, nibrs) → data/raw/open_baltimore/
-    - MSDE → data/raw/msde/
+    - Census (acs5, pep) → data/00 raw/census/
+    - BLS → data/00 raw/bls/
+    - Open Baltimore (open_baltimore, nibrs) → data/00 raw/open_baltimore/
+    - MSDE → data/00 raw/msde/
 
     Naming convention: {source}_{table}_{geo}_{year}_{timestamp}.json
     Example: acs1_B01003_city_2023_20260302T143022.json
@@ -75,7 +75,7 @@ def save_raw_response(
 
 
 def save_dataset(df: pd.DataFrame, name: str) -> Path:
-    """Save a clean dataset CSV to data/datasets/.
+    """Save a clean dataset CSV to data/01 clean/.
 
     Args:
         df: Clean DataFrame with human-readable column names
@@ -112,7 +112,7 @@ def save_data_dictionary(columns: list, name: str) -> Path:
 
 
 def save_processed(df: pd.DataFrame, name: str) -> Path:
-    """Save a processed output CSV to data/processed/.
+    """Save a processed output CSV to data/02 processed/.
 
     Args:
         df: Dashboard-ready DataFrame

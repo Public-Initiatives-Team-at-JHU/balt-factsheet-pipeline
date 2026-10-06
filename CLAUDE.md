@@ -60,9 +60,9 @@ scripts/                 # plot_factsheet.py: trend charts → data/visualizatio
 archive/                 # Development history: verification reports, one-off scripts (not used by pipeline)
 tests/                   # pytest suite
 data/
-  raw/                   # Raw API responses (gitignored)
-  datasets/              # Cleaned per-source datasets (gitignored)
-  processed/             # Fact sheet outputs for Power BI (gitignored)
+  00 raw/                # Raw API responses (gitignored)
+  01 clean/              # Cleaned per-source datasets + data dictionaries (gitignored)
+  02 processed/          # Fact sheet outputs for Power BI (gitignored)
   visualizations/        # Trend plots per metric
 docs/
   BNIA_Indicator_Data_Sources.xlsx  # Full 63-indicator reference with table IDs + API endpoints

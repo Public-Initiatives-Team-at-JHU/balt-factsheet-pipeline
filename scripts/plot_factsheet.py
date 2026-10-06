@@ -9,11 +9,13 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from pathlib import Path
 
+from src.utils.config import DATA_DIR, PROCESSED_DIR
+
 # Read the long-format data
-data = pd.read_csv("data/processed/baltimore_factsheet_long.csv")
+data = pd.read_csv(PROCESSED_DIR / "baltimore_factsheet_long.csv")
 
 # Create output folder
-output_dir = Path("data/visualizations")
+output_dir = DATA_DIR / "visualizations"
 output_dir.mkdir(exist_ok=True)
 
 # Define crime metric pairs (SRS → NIBRS mapping)

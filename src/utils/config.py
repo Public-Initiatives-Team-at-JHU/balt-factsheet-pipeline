@@ -28,9 +28,9 @@ logger = logging.getLogger(__name__)
 # All storage paths are centralized here so swapping local → ADLS is a config change.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
-RAW_DIR = DATA_DIR / "raw"
-DATASETS_DIR = DATA_DIR / "datasets"
-PROCESSED_DIR = DATA_DIR / "processed"
+RAW_DIR = DATA_DIR / "00 raw"
+DATASETS_DIR = DATA_DIR / "01 clean"
+PROCESSED_DIR = DATA_DIR / "02 processed"
 
 # ── Baltimore City FIPS codes ────────────────────────────────────────────────
 STATE_FIPS = "24"          # Maryland

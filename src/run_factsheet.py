@@ -12,7 +12,7 @@ Usage:
 New to this code? This is the file that runs everything. You normally don't
 need to edit it: to change WHAT the fact sheet shows, edit
 src/pipelines/metrics.py (the numbers) or src/pipelines/datasets.py (the
-source tables). The outputs Power BI reads land in data/processed/.
+source tables). The outputs Power BI reads land in data/02 processed/.
 """
 from __future__ import annotations
 

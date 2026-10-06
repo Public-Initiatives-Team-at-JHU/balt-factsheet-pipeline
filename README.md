@@ -44,12 +44,12 @@ If a Census download fails, the run stops with an `ERROR`. Census is the core of
 **Optional:** regenerate the trend charts in `data/visualizations/`:
 
 ```bash
-python3 scripts/plot_factsheet.py
+python3 -m scripts.plot_factsheet
 ```
 
 ## 3. Where the results go
 
-Everything Power BI needs is in `data/processed/`:
+Everything Power BI needs is in `data/02 processed/`:
 
 | File | What's in it |
 |------|--------------|
@@ -62,8 +62,8 @@ The metadata files are the place to answer "where does this number come from?"
 
 Two other folders are useful if you want to dig in:
 
-- `data/datasets/`: the cleaned source data, one CSV per table, each with a `_data_dictionary.csv` explaining every column. Fine to use for your own analysis.
-- `data/raw/`: the exact data each source sent back, saved with timestamps. If a number ever looks wrong, this is where to trace it.
+- `data/01 clean/`: the cleaned source data, one CSV per table, each with a `_data_dictionary.csv` explaining every column. Fine to use for your own analysis.
+- `data/00 raw/`: the exact data each source sent back, saved with timestamps. If a number ever looks wrong, this is where to trace it.
 
 ## 4. When to update
 
@@ -99,6 +99,46 @@ pytest
 
 The tests check that every calculation still produces the right answer. They use saved sample data, so they don't download anything. You don't need to read or edit them: if they all pass, your change didn't break anything. If some fail, the message names the metric or dataset that broke.
 
+## 6. Optional: using Claude Code
+
+**You don't need any AI tools to run or maintain this pipeline.** Everything above works on its own.
+
+This repository was built with [Claude Code](https://claude.com/claude-code), an AI coding assistant from Anthropic that runs in your terminal. It can read the code, run commands and make edits for you. If your team has access to it, it can be useful for people who are less comfortable with code: you describe what you want in plain English, and it does the work and explains it.
+
+### What `CLAUDE.md` is for
+
+`CLAUDE.md` is a briefing document for Claude. Whenever Claude Code is started in this folder, it reads `CLAUDE.md` first, so it already knows the project's background without anyone re-explaining it:
+
+- the project's goals and the three workstreams (fact sheet, JHU impact data, neighborhood deep dives)
+- who the dashboard's users are and what they need
+- the data sources, key settings and known caveats (for example, the delayed 2025 ACS release)
+- data quality rules the code must follow (keep margins of error, don't average pre-computed rates, check Census variable codes each year)
+- planned next phases that aren't built yet
+
+People can read it too. It's the most detailed description of the project's intent, beyond the how-to in this README.
+
+**Keep it current.** When a decision changes (official priority-area boundaries are confirmed, a metric is added or dropped, a data source changes), update `CLAUDE.md`. An out-of-date briefing leads Claude to make wrong assumptions. You can ask Claude to update it for you, e.g. *"Update CLAUDE.md: the priority area boundaries are now official."*
+
+### Getting started
+
+1. Install Claude Code by following the instructions at https://claude.com/claude-code. You'll need a Claude account. Check with JHU IT about which AI tools and accounts are approved.
+2. In a terminal, go to this folder and type `claude`.
+3. Ask for what you want in plain English.
+
+Example requests:
+
+- *"Run the fact sheet pipeline and tell me whether validation passed."*
+- *"New ACS data came out. Update the fact sheet and summarize which numbers changed the most."*
+- *"How is the poverty rate calculated, and what are its caveats?"*
+- *"Add a fact sheet metric for the share of households with no vehicle, from ACS table B25044."*
+- *"The tests are failing. What broke?"*
+
+### Ground rules
+
+- **Review before you keep anything.** Claude can make mistakes. Read its summary of what it changed, run `pytest`, and check that the numbers look sensible before publishing.
+- **Never paste API keys, passwords, or confidential data into the chat.** This matters especially for the JHU internal data planned for later phases (HR, finance, development). Follow JHU's policies on what data can be shared with AI tools.
+- **Claude doesn't replace checking against sources.** For any number going into a presentation, the source link in the metadata file is the authority.
+
 ## Folder guide
 
 ```
@@ -112,7 +152,7 @@ docs/                  Reference files: BNIA indicator list, tract → CSA cross
 archive/               Development history: verification reports and one-off scripts. Not needed day to day.
 ```
 
-`CLAUDE.md` is detailed project context for developers and AI coding assistants, including the planned next phases (neighborhood-level data and JHU impact data).
+`CLAUDE.md` is detailed project background, read automatically by Claude Code (see section 6) and useful for people too. It covers the planned next phases (neighborhood-level data and JHU impact data).
 
 ## Data sources
 

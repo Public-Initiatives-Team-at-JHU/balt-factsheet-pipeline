@@ -80,7 +80,7 @@ from src.pipelines.msde_report_card import (
 df_schools = pull_and_clean_msde_dataset(
     ACCOUNTABILITY_DATA,
     years=[2022, 2023, 2024, 2025],  # Specify years (or None for all available)
-    save=True,                        # Save to data/datasets/
+    save=True,                        # Save to data/01 clean/
     baltimore_city_only=True,         # Filter to Baltimore City only
 )
 
@@ -128,7 +128,7 @@ file_map = download_all_years(
 ## Output Structure
 
 ### Raw Data
-- **Location**: `data/raw/msde_report_card/`
+- **Location**: `data/00 raw/msde_report_card/`
 - **Files**:
   - `2025_Accountability_Schools.csv` (extracted from zip)
   - `2025_Accountability_Detail.csv` (extracted from zip)
@@ -136,7 +136,7 @@ file_map = download_all_years(
   - `accountability_details_2025.zip` (original download)
 
 ### Processed Data
-- **Location**: `data/datasets/`
+- **Location**: `data/01 clean/`
 - **Files**:
   - `msde_accountability_schools.csv` - Combined multi-year summary data (Baltimore City)
   - `msde_accountability_schools_data_dictionary.csv` - Column definitions

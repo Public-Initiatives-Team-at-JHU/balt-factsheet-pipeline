@@ -14,7 +14,7 @@ New to this code? Start here:
   ACSDataset(...)`). It lists which Census variables are pulled and gives
   each column a readable name and description.
 - The ColumnDef `name` values are the column names you'll see in
-  data/datasets/*.csv and that metrics.py uses in its formulas.
+  data/01 clean/*.csv and that metrics.py uses in its formulas.
 - The longer functions (pull_and_clean_*) are the machinery that downloads
   and cleans the data. You shouldn't need to change them to add a table.
 """
@@ -147,7 +147,7 @@ def pull_and_clean_dataset(
     Args:
         dataset: ACSDataset definition specifying what to pull
         years: List of ACS vintage years to fetch (default: ACS_YEARS from config)
-        save: If True, save the clean CSV and data dictionary to data/datasets/
+        save: If True, save the clean CSV and data dictionary to data/01 clean/
         extrapolate_to_current: If True, extrapolate to current year using recent trend
 
     Returns:
@@ -1426,7 +1426,7 @@ def pull_and_clean_ccd_dataset(
 
     Args:
         dataset: CCDDataset definition specifying which district and years
-        save: If True, save the clean CSV and data dictionary to data/datasets/
+        save: If True, save the clean CSV and data dictionary to data/01 clean/
 
     Returns:
         Clean DataFrame with columns: year, geography, k12_enrollment

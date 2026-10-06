@@ -546,7 +546,7 @@ def pull_and_clean_msde_dataset(
     if save:
         save_dataset(combined, dataset.file_name)
         save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
-        print(f"   ✅ Saved to data/datasets/{dataset.file_name}.csv")
+        print(f"   ✅ Saved to data/01 clean/{dataset.file_name}.csv")
 
     return combined
 
