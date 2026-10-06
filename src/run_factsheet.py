@@ -49,7 +49,9 @@ from src.pipelines.equity_datasets import (
     compute_equity_metrics,
     pull_equity_dataset,
 )
+from src.utils.config import PROCESSED_DIR
 from src.utils.io import save_processed
+from src.utils.provenance import add_provenance, check_output_dir, pipeline_version
 from src.utils.validation import validate_all
 
 
@@ -77,6 +79,9 @@ def run() -> dict:
     print("=" * 60)
     print("Baltimore Fact Sheet Pipeline")
     print("=" * 60)
+    check_output_dir(PROCESSED_DIR)
+    print(f"Outputs will be written to: {PROCESSED_DIR}")
+    print(f"Code version: {pipeline_version()}")
 
     # ── Layer 2: Pull and clean all datasets ─────────────────────────────────
     print("\n--- Pulling datasets from Census ACS API ---")
@@ -193,7 +198,7 @@ def run() -> dict:
     print(f"  {len(wide_df)} years × {len(wide_df.columns) - 1} metrics → baltimore_factsheet.csv")
 
     # ── Metadata (metric definitions and sources) ────────────────────────────
-    metadata = build_methodology_table(ALL_FACTSHEET_METRICS)
+    metadata = add_provenance(build_methodology_table(ALL_FACTSHEET_METRICS))
     save_processed(metadata, "baltimore_factsheet_metadata")
     print(f"  {len(metadata)} metric definitions → baltimore_factsheet_metadata.csv")
 
@@ -230,7 +235,7 @@ def run() -> dict:
             f"(aggregate + equity) → baltimore_factsheet_long.csv"
         )
 
-        equity_metadata = build_equity_methodology_table()
+        equity_metadata = add_provenance(build_equity_methodology_table())
         save_processed(equity_metadata, "baltimore_factsheet_equity_metadata")
         print(
             f"  {len(equity_metadata)} equity indicator definitions "

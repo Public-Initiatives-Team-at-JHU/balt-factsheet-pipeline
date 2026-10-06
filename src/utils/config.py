@@ -30,7 +30,25 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "00 raw"
 DATASETS_DIR = DATA_DIR / "01 clean"
-PROCESSED_DIR = DATA_DIR / "02 processed"
+
+
+def processed_dir_from_env() -> Path:
+    """Folder where fact sheet outputs are written.
+
+    Defaults to data/02 processed/. Set the FACTSHEET_OUTPUT_DIR environment
+    variable to a OneDrive-synced SharePoint folder to publish outputs there
+    directly instead of uploading them by hand.
+    """
+    override = os.environ.get("FACTSHEET_OUTPUT_DIR")
+    if override:
+        return Path(override).expanduser()
+    return DATA_DIR / "02 processed"
+
+
+PROCESSED_DIR = processed_dir_from_env()
+
+# Stamped on every metadata output so published files trace back to the code.
+PIPELINE_REPO_URL = "https://github.com/Public-Initiatives-Team-at-JHU/jhu-public-impact-data"
 
 # ── Baltimore City FIPS codes ────────────────────────────────────────────────
 STATE_FIPS = "24"          # Maryland

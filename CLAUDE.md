@@ -25,6 +25,7 @@ Detailed point-level data for specific topics (e.g., vacancy, building on existi
 
 - **Team:** JHU Public Impact Initiatives data team (owner). Pipelines originally built by Good Enough (consultant) and handed off to the JHU team.
 - **Platform:** SharePoint site for the Public Impact Initiatives team, with Power BI dashboards embedded in pages. ArcGIS plugin for Power BI for mapping.
+- **Code ↔ outputs:** Code lives on GitHub; outputs are published to a SharePoint folder (manual upload, or `FACTSHEET_OUTPUT_DIR` pointed at a OneDrive-synced folder). The SharePoint data registry list is the hub linking the two; metadata outputs carry `pipeline_repo` + `pipeline_version` (git commit) columns.
 - **Users:** JHU leadership (president's office), communications/comms staff, compliance, development office, finance. Primary use case is storytelling + rapid fact-finding, not raw data exploration.
 - **Dashboard UX:** Combination of preloaded visualizations AND chatbot functionality with preloaded questions. Most users want facts + sources, not raw data.
 - **Source metadata:** Each data source needs documentation (what it is, why you'd use it, caveats). Internal education is a goal — people should understand and be able to agree on the sources.
@@ -56,6 +57,7 @@ src/
     config.py            # FIPS codes, API keys (from env vars), ACS vintage resolution
     io.py                # Save raw responses, datasets, data dictionaries, processed outputs
     validation.py        # Data quality checks for datasets and metrics
+    provenance.py        # Stamps metadata outputs with repo URL + git commit; output-folder check
 scripts/                 # plot_factsheet.py: trend charts → data/visualizations/
 archive/                 # Development history: verification reports, one-off scripts (not used by pipeline)
 tests/                   # pytest suite
@@ -69,7 +71,7 @@ docs/
   Tract2020_to_CSA2020.csv          # Tract → CSA crosswalk (for Phase 2)
 ```
 
-**Planned, not yet built** (Phase 2/3): tract → CSA crosswalk and aggregation modules, health/elections/HUD pipelines, SharePoint upload, priority-area boundary files.
+**Planned, not yet built** (Phase 2/3): tract → CSA crosswalk and aggregation modules, health/elections/HUD pipelines, automated SharePoint upload, priority-area boundary files.
 
 ## Key Constants
 
@@ -369,7 +371,7 @@ Where `geography` is "Baltimore City" for Phase 1, and CSA name for Phase 2. `pe
 - Key packages: `requests`, `pandas`, `geopandas`, `openpyxl`
 - For spatial joins (geocode→CSA): `geopandas`, `shapely`
 - For Socrata: `sodapy` (optional convenience wrapper)
-- For SharePoint upload: `Office365-REST-Python-Client` or `shareplum`
+- For SharePoint upload: currently via a OneDrive-synced folder (`FACTSHEET_OUTPUT_DIR`); no Graph API access or GitHub Actions. API upload (`Office365-REST-Python-Client`) would need IT-granted app permissions
 - For Power BI: data saved as CSV/Excel to SharePoint document library; Power BI connects to files
 
 ## Data Quality Rules

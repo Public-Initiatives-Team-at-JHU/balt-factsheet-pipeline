@@ -58,12 +58,49 @@ Everything Power BI needs is in `data/02 processed/`:
 | `baltimore_factsheet_metadata.csv` | For every metric: plain-English definition, formula, source, link and caveats |
 | `baltimore_factsheet_equity_metadata.csv` | The same, for the race/ethnicity breakdowns |
 
-The metadata files are the place to answer "where does this number come from?"
+The metadata files are the place to answer "where does this number come from?" They also record which version of this code produced them. See "Tracing a file back to the code" below.
 
 Two other folders are useful if you want to dig in:
 
 - `data/01 clean/`: the cleaned source data, one CSV per table, each with a `_data_dictionary.csv` explaining every column. Fine to use for your own analysis.
 - `data/00 raw/`: the exact data each source sent back, saved with timestamps. If a number ever looks wrong, this is where to trace it.
+
+### Publishing to SharePoint
+
+The published outputs live in SharePoint, not on GitHub:
+
+- **Outputs folder:** `<SharePoint link to the fact sheet outputs folder>`
+- **Data registry entry:** `<SharePoint link to this pipeline's row in the data registry list>`
+
+The Power BI dashboard reads the files in that SharePoint folder. To publish a new run, pick one of these options.
+
+**Option A: upload by hand.** After the run, upload the CSVs from `data/02 processed/` to the SharePoint outputs folder, replacing the old files. Keep the file names the same, or Power BI will lose track of them.
+
+**Option B: have the pipeline write straight to SharePoint (recommended).** This needs no special access, just the OneDrive app on your computer:
+
+1. In SharePoint, open the outputs folder and click **Sync** (or **Add shortcut to My files**). OneDrive then shows that folder on your computer. On a Mac it's usually under `~/Library/CloudStorage/OneDrive-...`; on Windows it's in File Explorer under the organization's name.
+2. Copy that folder's path and tell the pipeline to use it:
+
+   ```bash
+   export FACTSHEET_OUTPUT_DIR="/path/to/the/synced/SharePoint/folder"
+   python3 -m src.run_factsheet
+   ```
+
+   To make this permanent, add the `export` line to your shell profile (`~/.zshrc` on a Mac).
+3. The run's first lines confirm where outputs are going. OneDrive uploads them, and Power BI picks them up on its next refresh.
+
+If the folder doesn't exist (a typo, or OneDrive hasn't finished syncing), the run stops with an error rather than writing the files somewhere else.
+
+After publishing, update **Last refreshed** in the data registry entry.
+
+### Tracing a file back to the code
+
+Every metadata file (`baltimore_factsheet_metadata.csv`, `baltimore_factsheet_equity_metadata.csv`) includes two columns:
+
+- `pipeline_repo`: this GitHub repository.
+- `pipeline_version`: the exact version (git commit) of the code that produced the file, e.g. `a1b2c3d`.
+
+To see that exact code, go to `<pipeline_repo>/commit/<pipeline_version>`. If the version ends in `-modified`, the run used code with edits that hadn't been saved to GitHub yet. Commit and push changes before a run you're going to publish, so the version fully describes the code.
 
 ## 4. When to update
 
