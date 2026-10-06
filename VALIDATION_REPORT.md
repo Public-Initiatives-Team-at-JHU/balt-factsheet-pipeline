@@ -255,7 +255,7 @@ All tested metrics accurately reflect the documented formulas and source data. T
 ## Validation Script
 
 The validation script is available at:
-- `/Users/justin/code/jhu-public-impact-data/validate_factsheet.py`
+- `validate_factsheet.py` (repo root)
 
 Run with: `python3 validate_factsheet.py`
 

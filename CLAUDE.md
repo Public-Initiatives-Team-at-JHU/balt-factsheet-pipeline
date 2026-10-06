@@ -19,54 +19,56 @@ Automate a currently-manual "Baltimore fact sheet" with **7-8 core statistics** 
 Internal Hopkins data measuring community contributions — employee/student residence locations, procurement, small business spending, fellowships/grants. Data comes from internal sources (HR via president's liaison, finance, development office). Format and access method unknown — could be numbers, CSVs, or point files. This will take longer to stand up because data acquisition is still being figured out.
 
 ### Workstream 3: Neighborhood/Topic Deep Dives (ongoing)
-Detailed point-level data for specific topics (e.g., vacancy — Peter is already working on BBRC vacant building coalition data). May expand to other topics. Uses geographic priority areas around Hopkins campuses.
+Detailed point-level data for specific topics (e.g., vacancy, building on existing work with BBRC vacant building coalition data). May expand to other topics. Uses geographic priority areas around Hopkins campuses.
 
 ## Key Context
 
-- **Team:** Seema (lead), Peter (data analyst, building Python notebooks + Power BI dashboards), Justin (consultant — pipelines, architecture, user research)
+- **Team:** JHU Public Impact Initiatives data team (owner). Pipelines originally built by Good Enough (consultant) and handed off to the JHU team.
 - **Platform:** SharePoint site for the Public Impact Initiatives team, with Power BI dashboards embedded in pages. ArcGIS plugin for Power BI for mapping.
 - **Users:** JHU leadership (president's office), communications/comms staff, compliance, development office, finance. Primary use case is storytelling + rapid fact-finding, not raw data exploration.
 - **Dashboard UX:** Combination of preloaded visualizations AND chatbot functionality with preloaded questions. Most users want facts + sources, not raw data.
 - **Source metadata:** Each data source needs documentation (what it is, why you'd use it, caveats). Internal education is a goal — people should understand and be able to agree on the sources.
 - **Geographic priority areas:** East Baltimore, Homewood, Peabody, Carey School of Business, Bayview. Shapefile for these boundaries exists (unofficial, not yet confirmed as official). Mount Washington excluded. Also interested in Remington and EBDI comparisons.
 - **BNIA:** Can't use BNIA's published data directly because of ~1 year lag. Use the same underlying sources but pull more current data.
-- **Peter's existing work:** Python notebooks pulling from Open Baltimore API (vacancy focus). Code review needed. Acquisition log started in SharePoint. Uses Power BI with ArcGIS plugin.
-- **Federal data risk:** Some federal datasets may no longer exist or be trustworthy given current political climate. Census and BLS are assumed reliable for now but worth monitoring.
+- **Related team work:** Separate Python notebooks pull vacancy data from the Open Baltimore API. A data acquisition log is maintained in SharePoint.
+- **Federal data continuity:** Federal datasets can be discontinued, delayed, or changed in methodology. Census and BLS are the primary sources here; monitor release schedules and methodology notices (see the ACS 2025 note below).
+- **ACS 2025 release is on hold (as of 2026-09-22):** Census has not released the 2025 ACS 1-Year estimates and has announced no date, pending the Commerce "Disclosure Avoidance for Statistical Products" administrative order. The 16 ACS-based fact sheet stats are therefore capped at 2024. Watch whether B-table detail survives DAO compliance — Phase 2's tract-level work depends on the small-geography detail that disclosure avoidance restricts first.
 
 ## Architecture
 
+Entry point: `python -m src.run_factsheet` runs the full Phase 1 fact sheet pipeline.
+
 ```
 src/
+  run_factsheet.py       # Batch runner: pull datasets → compute metrics → write outputs
   pipelines/
-    bls.py               # BLS LAUS API for monthly unemployment
-    census_acs.py        # ACS 5-Year API for poverty, income, demographics
-    census_pop.py        # Population Estimates Program (annual pop estimates)
-    open_baltimore.py    # Socrata API for crime, demolitions, vacants
-    education.py         # BCPS / MSDE data (manual download + parse)
-    health.py            # Health dept data (scrape/parse)
-    elections.py         # Voter registration/turnout
-    hud.py               # Housing voucher data from HUD
-  crosswalk/
-    tract_to_csa.py      # Census tract → CSA crosswalk logic
-    school_to_csa.py     # School catchment → CSA mapping
-    geocode_to_csa.py    # Lat/lon point → CSA assignment
-  transforms/
-    aggregation.py       # Weighted averaging, summing, rate calculation
-    derived.py           # Computed indicators (diversity index, pop change)
-  output/
-    sharepoint.py        # Upload to SharePoint document library
-    dashboard_data.py    # Format for Power BI / dashboard consumption
+    bls.py               # BLS LAUS API (monthly unemployment)
+    census_acs.py        # Census ACS API fetch + variable verification (city and tract)
+    census_pop.py        # Census Population Estimates Program (annual population)
+    datasets.py          # Dataset definitions; pull + clean ACS and BLS datasets
+    equity_datasets.py   # Race/ethnicity-specific ACS datasets (poverty, income, tenure)
+    metrics.py           # Computes fact sheet metrics from datasets; methodology table
+    open_baltimore.py    # Baltimore Part 1 crime (ArcGIS query) + crime classification
+    nibrs.py             # NIBRS crime counts + classification
+    msde_report_card.py  # MSDE Report Card downloads (see README_MSDE.md)
+    nces_ccd.py          # NCES Common Core of Data (K-12 enrollment)
   utils/
-    config.py            # API keys, FIPS codes, year parameters
-    validation.py        # Data quality checks
+    config.py            # FIPS codes, API keys (from env vars), ACS vintage resolution
+    io.py                # Save raw responses, datasets, data dictionaries, processed outputs
+    validation.py        # Data quality checks for datasets and metrics
+scripts/                 # One-off utilities: plotting, re-computing, regenerating from cache
+tests/                   # pytest suite
 data/
-  raw/                   # Downloaded source files (gitignored)
-  crosswalks/            # Tract-to-CSA and other mapping files
-  processed/             # Pipeline outputs
-  boundaries/            # Shapefiles — CSA boundaries, Hopkins priority areas
+  raw/                   # Raw API responses (gitignored)
+  datasets/              # Cleaned per-source datasets (gitignored)
+  processed/             # Fact sheet outputs for Power BI (gitignored)
+  visualizations/        # Trend plots per metric
 docs/
   BNIA_Indicator_Data_Sources.xlsx  # Full 63-indicator reference with table IDs + API endpoints
+  Tract2020_to_CSA2020.csv          # Tract → CSA crosswalk (for Phase 2)
 ```
+
+**Planned, not yet built** (Phase 2/3): tract → CSA crosswalk and aggregation modules, health/elections/HUD pipelines, SharePoint upload, priority-area boundary files.
 
 ## Key Constants
 
@@ -86,8 +88,12 @@ BLS_API_BASE = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
 BLS_LAUS_SERIES = "LAUST245100000000003"  # Baltimore City unemployment rate (LAUS)
 BLS_API_KEY = ""  # Get at https://data.bls.gov/registrationEngine/ — optional, higher limits
 
-# ACS vintage — use 5-Year estimates
-DEFAULT_ACS_YEAR = 2023  # Latest available; produces 2019-2023 estimates
+# ACS vintage — do NOT hardcode. Resolved at runtime by probing the Census API:
+#   from src.utils.config import latest_acs_vintage, acs1_years, acs5_years
+# Falls back to ACS1_FALLBACK_YEAR / ACS5_FALLBACK_YEAR (both 2024) if the probe
+# fails, and never guesses past what Census has actually published.
+# Pin a vintage for a reproducible re-run: ACS1_VINTAGE=2024 python -m src.run_factsheet
+ACS1_FALLBACK_YEAR = 2024  # newest vintage confirmed published
 
 # Open Baltimore (Socrata)
 OPEN_BALT_BASE = "https://data.baltimorecity.gov/resource"
@@ -96,7 +102,7 @@ OPEN_BALT_BASE = "https://data.baltimorecity.gov/resource"
 NUM_CSAS = 55  # Baltimore has 55 Community Statistical Areas
 
 # Trend data range
-TREND_START_YEAR = 2020  # Per Seema: start all trend data from 2020 for consistency
+TREND_START_YEAR = 2020  # Team decision: start all trend data from 2020 for consistency
 ```
 
 ## Build Order
@@ -108,7 +114,7 @@ This is the quick win. City-level data, simple pipelines, immediate value.
 1. **BLS unemployment pipeline** — Monthly data, BLS LAUS API. Baltimore City series ID: `LAUST245100000000003`. Pull 2020-present.
 2. **Census population pipeline** — Annual population estimate from Population Estimates Program (PEP). Baltimore City. Pull 2020-present.
 3. **Census ACS core stats** — Poverty rate (B17001/B17021), median household income (B19013), education attainment (B15003). City-level (not tract — simpler than CSA aggregation). Pull last 5 ACS vintages.
-4. **Additional fact sheet stats** — TBD based on what Seema confirms from the existing fact sheet. Likely crime rate (Open Baltimore), housing stats.
+4. **Additional fact sheet stats** — TBD based on what the team lead confirms from the existing fact sheet. Likely crime rate (Open Baltimore), housing stats.
 5. **Power BI dashboard** — Embed in SharePoint page. Preloaded visualizations with trend lines. Source metadata displayed alongside each stat.
 6. **Source documentation** — For each data source: what it is, update frequency, why it's authoritative, caveats.
 
@@ -182,7 +188,8 @@ Note: PEP variable names change each vintage year. Check the variables endpoint 
 For the fact sheet, pull at **county level** (Baltimore City = county 510), not tract level. This avoids the CSA crosswalk entirely.
 
 ```python
-def fetch_acs_city_level(variables, year=DEFAULT_ACS_YEAR):
+def fetch_acs_city_level(variables, year=None):
+    year = year or latest_acs_vintage("acs1")
     """Fetch ACS data for Baltimore City as a whole (no tract breakdown)."""
     url = CENSUS_API_BASE.format(year=year)
     params = {
@@ -236,7 +243,8 @@ Single API, single geography (tract), single crosswalk. Bulk of the Phase 2 work
 
 **API call pattern (tract-level for CSA aggregation):**
 ```python
-def fetch_acs_tracts(table_id, variables, year=DEFAULT_ACS_YEAR):
+def fetch_acs_tracts(table_id, variables, year=None):
+    year = year or latest_acs_vintage("acs5")
     """Fetch ACS data for all Baltimore City tracts."""
     url = CENSUS_API_BASE.format(year=year)
     params = {
@@ -336,7 +344,7 @@ Hopkins has ~7 campus/facility locations. The priority areas for neighborhood-le
 - Bayview
 - (Mount Washington excluded — isolated, no community engagement relevance)
 
-A shapefile with these boundaries exists in the SharePoint data resources folder. These are **unofficial** and not yet confirmed as the team's official boundary definitions. Seema is working to get agreement.
+A shapefile with these boundaries exists in the SharePoint data resources folder. These are **unofficial** and not yet confirmed as the team's official boundary definitions; agreement on official boundaries is pending.
 
 For neighborhood comparison views, Remington and EBDI are of particular interest.
 
