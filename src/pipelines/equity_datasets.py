@@ -44,7 +44,12 @@ import pandas as pd
 
 from src.pipelines.census_acs import fetch_acs_city
 from src.pipelines.datasets import ACSDataset, ColumnDef, _to_numeric
-from src.utils.config import ACS1_LATEST_YEAR, ACS1_EARLIEST_YEAR, acs1_years
+from src.utils.config import (
+    ACS1_EARLIEST_YEAR,
+    ACS1_TABLE_URL,
+    acs1_years,
+    resolve_acs_vintage_tokens,
+)
 from src.utils.io import save_dataset, save_raw_response, save_processed
 
 # ── Race groups ──────────────────────────────────────────────────────────────
@@ -71,7 +76,7 @@ EQUITY_OUTPUT_COLUMNS = [
     "last_updated",
 ]
 
-_ACS1Y_URL = f"https://data.census.gov/table/ACSDT1Y{ACS1_LATEST_YEAR}"
+_ACS1Y_URL = ACS1_TABLE_URL  # carries {acs1_vintage}; resolved at emit time
 _ACS_SOURCE = "ACS 1-Year Estimates"
 
 
@@ -303,7 +308,7 @@ def compute_equity_metrics(equity_datasets: dict[str, pd.DataFrame]) -> pd.DataF
     rows = []
 
     for id_template, indicator_name, table_base, compute_fn, dataset_dict, unit, _ in _EQUITY_METRIC_SPECS:
-        source_url = f"{_ACS1Y_URL}.{table_base}"
+        source_url = resolve_acs_vintage_tokens(f"{_ACS1Y_URL}.{table_base}")
         for race_key, (suffix, label) in RACE_GROUPS.items():
             dataset = dataset_dict[race_key]
             df = equity_datasets.get(dataset.file_name)
@@ -346,7 +351,7 @@ def build_equity_methodology_table() -> pd.DataFrame:
     rows = []
 
     for id_template, indicator_name, table_base, _, dataset_dict, unit, formula_template in _EQUITY_METRIC_SPECS:
-        source_url = f"{_ACS1Y_URL}.{table_base}"
+        source_url = resolve_acs_vintage_tokens(f"{_ACS1Y_URL}.{table_base}")
         for race_key, (suffix, label) in RACE_GROUPS.items():
             indicator_id = id_template.replace("{key}", race_key)
             formula = formula_template.replace("{suffix}", suffix)

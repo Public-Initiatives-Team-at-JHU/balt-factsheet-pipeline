@@ -31,7 +31,13 @@ from src.pipelines.nibrs import (
     fetch_nibrs_counts_by_year,
 )
 from src.pipelines.nces_ccd import fetch_ccd_district_enrollment
-from src.utils.config import ACS1_EARLIEST_YEAR, ACS1_LATEST_YEAR, PEP_LATEST_VINTAGE, PEP_START_YEAR, acs1_years
+from src.utils.config import (
+    ACS1_EARLIEST_YEAR,
+    PEP_LATEST_VINTAGE,
+    PEP_START_YEAR,
+    SRS_END_YEAR,
+    acs1_years,
+)
 from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
 
 # Census uses this sentinel for suppressed margins of error
@@ -1098,13 +1104,13 @@ def pull_and_clean_ob_crime_dataset(
     """
     raw = fetch_crime_counts_by_year(
         start_year=dataset.start_year,
-        end_year=ACS1_LATEST_YEAR,
+        end_year=SRS_END_YEAR,
     )
 
     # Layer 1: save raw aggregated response
     save_raw_response(
         raw, "open_baltimore", dataset.dataset_id,
-        f"{dataset.start_year}-{ACS1_LATEST_YEAR}", geo="city",
+        f"{dataset.start_year}-{SRS_END_YEAR}", geo="city",
     )
 
     if not raw:

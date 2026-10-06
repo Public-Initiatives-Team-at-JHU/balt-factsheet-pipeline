@@ -21,9 +21,14 @@ from typing import Callable, Optional
 
 import pandas as pd
 
-from src.utils.config import ACS1_LATEST_YEAR, DASHBOARD_COLUMNS, METHODOLOGY_COLUMNS
+from src.utils.config import (
+    ACS1_TABLE_URL,
+    DASHBOARD_COLUMNS,
+    METHODOLOGY_COLUMNS,
+    resolve_acs_vintage_tokens,
+)
 
-_ACS1Y_URL = f"https://data.census.gov/table/ACSDT1Y{ACS1_LATEST_YEAR}"
+_ACS1Y_URL = ACS1_TABLE_URL  # carries {acs1_vintage}; resolved at emit time
 
 
 @dataclass
@@ -96,7 +101,7 @@ def compute_all_metrics(
                 "year": year,
                 "period": period,
                 "source": metric.source_name,
-                "source_url": metric.source_url,
+                "source_url": resolve_acs_vintage_tokens(metric.source_url),
                 "last_updated": now,
             })
 
@@ -164,7 +169,7 @@ def build_methodology_table(metrics: list) -> pd.DataFrame:
             "source_name": metric.source_name,
             "source_table": metric.source_table,
             "source_dataset": metric.source_dataset,
-            "source_url": metric.source_url,
+            "source_url": resolve_acs_vintage_tokens(metric.source_url),
             "unit": metric.unit,
             "update_frequency": metric.update_frequency,
             "geographic_level": metric.geographic_level,

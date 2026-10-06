@@ -7,6 +7,7 @@ import pytest
 
 from src.pipelines.datasets import (
     CENSUS_SUPPRESSED_MOE,
+    CRIME_PART1,
     ENROLLMENT_CCD,
     TOTAL_POPULATION,
     ACSDataset,
@@ -15,7 +16,10 @@ from src.pipelines.datasets import (
     _to_numeric,
     pull_and_clean_ccd_dataset,
     pull_and_clean_dataset,
+    pull_and_clean_ob_crime_dataset,
 )
+from src.utils import config
+from src.utils.config import SRS_END_YEAR
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -340,3 +344,38 @@ class TestCCDDataset:
             mock_fetch.return_value = []
             with pytest.raises(ValueError, match="No enrollment data returned"):
                 pull_and_clean_ccd_dataset(ENROLLMENT_CCD, save=False)
+
+
+# ── SRS crime end year is independent of the ACS vintage ─────────────────────
+
+
+class TestSrsCrimeEndYear:
+    """SRS reporting ended 2024-12-31, so its end year is fixed.
+
+    It previously borrowed ACS1_LATEST_YEAR, which happened to be 2024 too.
+    Once the ACS vintage advances, that coincidence would silently request a
+    year of SRS data that does not exist.
+    """
+
+    @pytest.fixture(autouse=True)
+    def advance_acs_vintage(self, monkeypatch):
+        monkeypatch.setenv("ACS1_VINTAGE", "2025")
+        config.latest_acs_vintage.cache_clear()
+        yield
+        config.latest_acs_vintage.cache_clear()
+
+    @patch("src.pipelines.datasets.save_raw_response")
+    @patch("src.pipelines.datasets.save_dataset")
+    @patch("src.pipelines.datasets.save_data_dictionary")
+    @patch("src.pipelines.datasets.fetch_crime_counts_by_year")
+    def test_requests_srs_end_year_not_acs_vintage(
+        self, mock_fetch, mock_save_dd, mock_save_ds, mock_save_raw,
+    ):
+        mock_fetch.return_value = [
+            {"year": 2024, "description": "HOMICIDE", "count": 194},
+        ]
+
+        pull_and_clean_ob_crime_dataset(CRIME_PART1, save=False)
+
+        assert mock_fetch.call_args.kwargs["end_year"] == SRS_END_YEAR
+        assert mock_fetch.call_args.kwargs["end_year"] == 2024

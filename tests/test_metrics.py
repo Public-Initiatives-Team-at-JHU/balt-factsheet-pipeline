@@ -11,6 +11,7 @@ from src.pipelines.metrics import (
     build_methodology_table,
     compute_all_metrics,
 )
+from src.utils import config
 from src.utils.config import DASHBOARD_COLUMNS, METHODOLOGY_COLUMNS
 
 
@@ -260,3 +261,51 @@ class TestK12EnrollmentMetric:
     def test_in_all_factsheet_metrics(self):
         ids = [m.id for m in ALL_FACTSHEET_METRICS]
         assert "k12_enrollment_bcpss" in ids
+
+
+# ── ACS vintage in source URLs ───────────────────────────────────────────────
+
+
+class TestAcsSourceUrlVintage:
+    """data.census.gov links must reflect the vintage actually pulled.
+
+    Metric definitions are module-level, so the vintage can't be baked in at
+    import time — it is substituted when rows are emitted.
+    """
+
+    @pytest.fixture(autouse=True)
+    def pin_vintage(self, monkeypatch):
+        monkeypatch.setenv("ACS1_VINTAGE", "2025")
+        config.latest_acs_vintage.cache_clear()
+        yield
+        config.latest_acs_vintage.cache_clear()
+
+    def test_dashboard_rows_use_resolved_vintage(self, pop_dataset):
+        result = compute_all_metrics(
+            [TOTAL_POPULATION_METRIC],
+            {"acs1_total_population": pop_dataset},
+        )
+
+        assert set(result["source_url"]) == {
+            "https://data.census.gov/table/ACSDT1Y2025.B01003"
+        }
+
+    def test_methodology_rows_use_resolved_vintage(self):
+        result = build_methodology_table([TOTAL_POPULATION_METRIC])
+
+        assert result.loc[0, "source_url"] == (
+            "https://data.census.gov/table/ACSDT1Y2025.B01003"
+        )
+
+    def test_no_unresolved_placeholder_survives_to_output(self):
+        result = build_methodology_table(ALL_FACTSHEET_METRICS)
+
+        leftover = [u for u in result["source_url"] if "{" in str(u)]
+        assert leftover == [], f"unsubstituted placeholders: {leftover}"
+
+    def test_non_acs_urls_are_untouched(self):
+        result = build_methodology_table(ALL_FACTSHEET_METRICS)
+        bls = result[result["source_name"].str.contains("Bureau of Labor|BLS", na=False)]
+
+        assert not bls.empty, "expected a BLS metric in the fact sheet"
+        assert all(u == "https://www.bls.gov/lau/" for u in bls["source_url"])
