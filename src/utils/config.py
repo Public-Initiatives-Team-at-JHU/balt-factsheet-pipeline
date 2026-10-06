@@ -48,7 +48,7 @@ def processed_dir_from_env() -> Path:
 PROCESSED_DIR = processed_dir_from_env()
 
 # Stamped on every metadata output so published files trace back to the code.
-PIPELINE_REPO_URL = "https://github.com/Public-Initiatives-Team-at-JHU/jhu-public-impact-data"
+PIPELINE_REPO_URL = "https://github.com/Public-Initiatives-Team-at-JHU/balt-factsheet-pipeline"
 
 # ── Baltimore City FIPS codes ────────────────────────────────────────────────
 STATE_FIPS = "24"          # Maryland

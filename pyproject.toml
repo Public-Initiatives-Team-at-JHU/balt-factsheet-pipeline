@@ -1,5 +1,5 @@
 [project]
-name = "jhu-public-impact-data"
+name = "balt-factsheet-pipeline"
 version = "0.1.0"
 description = "Data pipelines for JHU Public Impact Initiatives dashboard"
 requires-python = ">=3.9"
