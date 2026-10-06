@@ -260,7 +260,8 @@ UNEMPLOYMENT_RATE_BLS_METRIC = Metric(
     source_dataset="bls_laus_unemployment",
     source_table="LAUS",
     formula_description=(
-        "Annual average of BLS LAUS monthly unemployment rates. "
+        "BLS LAUS published annual average unemployment rate (annual unemployed "
+        "÷ annual labor force, as calculated by BLS). "
         "Series ID: LAUCN245100000000003 (Baltimore City, not seasonally adjusted)."
     ),
     source_name="BLS Local Area Unemployment Statistics",
@@ -269,10 +270,11 @@ UNEMPLOYMENT_RATE_BLS_METRIC = Metric(
     update_frequency="monthly (aggregated to annual)",
     caveats=(
         "Monthly estimates are not seasonally adjusted. "
-        "Annual value is the arithmetic mean of the year's monthly observations; "
-        "the current year appears only once December is published. "
-        "2025 averages 11 months: BLS did not publish October 2025 because of "
-        "the federal government shutdown. "
+        "Annual value is BLS's published annual average, which can differ "
+        "slightly from averaging the 12 monthly rates. The current year appears "
+        "only once BLS publishes its annual average. "
+        "BLS did not publish October 2025 because of the federal government "
+        "shutdown; its 2025 annual average is based on the remaining data. "
         "BLS LAUS is the authoritative source for unemployment rates."
     ),
 )
@@ -292,8 +294,8 @@ PRIVATE_JOBS_QCEW_METRIC = Metric(
     source_dataset="bls_qcew_private_employment",
     source_table="QCEW",
     formula_description=(
-        "Annual average of BLS QCEW monthly employment, rounded to whole jobs "
-        "(matches the BLS published annual average). "
+        "BLS QCEW published annual average employment (mean of the 12 monthly "
+        "employment counts). "
         "Series ID: ENU2451010510 (Baltimore City, private ownership, all industries)."
     ),
     source_name="BLS Quarterly Census of Employment and Wages",

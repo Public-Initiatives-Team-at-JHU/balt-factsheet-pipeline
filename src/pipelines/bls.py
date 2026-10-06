@@ -68,6 +68,10 @@ def _bls_api_call(series_id: str, start_year: int, end_year: int) -> dict:
         "seriesid": [series_id],
         "startyear": str(start_year),
         "endyear": str(end_year),
+        # Include BLS's published annual averages (period "M13"). These are the
+        # official annual figures; for rates like unemployment they differ from
+        # a simple mean of the monthly values.
+        "annualaverage": True,
     }
 
     if BLS_API_KEY:

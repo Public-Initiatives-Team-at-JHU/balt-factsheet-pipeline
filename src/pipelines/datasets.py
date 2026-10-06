@@ -316,8 +316,8 @@ class BLSDataset:
                 "description": f"Annual average {self.measure.replace('_', ' ')} ({self.unit_label})",
                 "bls_series": "",
                 "notes": (
-                    "Mean of the year's published monthly values. Only years with "
-                    "December published are included (no partial years)."
+                    "BLS's published annual average. Only complete years are "
+                    "included (no partial years)."
                 ),
             },
             {
@@ -340,9 +340,9 @@ def pull_and_clean_bls_dataset(
     2. Saves the raw JSON response (Layer 1)
     3. Parses monthly data points
     4. Converts string values to numeric ("-" = not published → missing)
-    5. Computes annual averages for complete years only. A year is complete
-       once December is published, so the in-progress year is never shown
-       as an annual figure.
+    5. Takes each year's annual value from BLS's published annual average
+       (period "M13"). BLS publishes it only for complete years, so the
+       in-progress year is never shown as an annual figure.
     6. Assembles into a DataFrame with both monthly and annual data
 
     Args:
@@ -366,12 +366,14 @@ def pull_and_clean_bls_dataset(
     series_data = raw["Results"]["series"][0]["data"]
 
     rows = []
+    published_annual = {}
     for point in series_data:
         year = int(point["year"])
         period = point["period"]
 
-        # Skip annual averages (period="M13") — we compute our own
+        # BLS's published annual average — the official annual figure
         if period == "M13":
+            published_annual[year] = _to_numeric(point["value"])
             continue
 
         # Extract month number from period (e.g. "M01" → 1)
@@ -389,19 +391,22 @@ def pull_and_clean_bls_dataset(
 
     monthly_df = pd.DataFrame(rows)
 
-    # Compute annual averages for complete years only (December published).
-    # Averaging Jan-Feb alone would misstate the year, especially for data that
-    # isn't seasonally adjusted. Missing months (e.g. Oct 2025, unpublished
-    # during the federal shutdown) are skipped and counted in months_reported.
+    # Annual values are BLS's published annual averages, so the fact sheet
+    # matches BLS exactly. (For unemployment, BLS computes the annual rate from
+    # annual totals, which differs from averaging the 12 monthly rates.) BLS
+    # publishes these only for complete years, so a partial year like Jan-Feb
+    # never appears. months_reported shows how many monthly values BLS
+    # published that year (e.g. 11 for 2025 LAUS: October went unpublished
+    # during the federal shutdown).
     value_col = f"monthly_{dataset.measure}"
-    reported = monthly_df.dropna(subset=[value_col])
-    complete_years = reported.loc[reported["month"] == 12, "year"].unique()
-    annual_df = (
-        reported[reported["year"].isin(complete_years)]
-        .groupby("year")[value_col]
-        .agg(["mean", "count"])
-        .reset_index()
-        .rename(columns={"mean": f"annual_{dataset.measure}", "count": "months_reported"})
+    months_reported = monthly_df.dropna(subset=[value_col]).groupby("year").size()
+    annual_df = pd.DataFrame(
+        [
+            {"year": y, f"annual_{dataset.measure}": v, "months_reported": int(months_reported.get(y, 0))}
+            for y, v in sorted(published_annual.items())
+            if v is not None and not pd.isna(v)
+        ],
+        columns=["year", f"annual_{dataset.measure}", "months_reported"],
     )
 
     # Add geography column

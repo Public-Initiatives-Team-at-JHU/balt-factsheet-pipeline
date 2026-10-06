@@ -1,8 +1,9 @@
 """Tests for the BLS dataset layer (LAUS unemployment, QCEW private-sector jobs).
 
 The BLS API is mocked — no network calls. The key behavior under test: an
-annual figure is only published once a year is complete (December reported),
-so a partial year like Jan–Feb is never presented as an annual average.
+annual figure is only published once a year is complete,
+so a partial year like Jan–Feb is never presented as an annual average,
+and annual values are BLS's own published figures.
 """
 
 from unittest.mock import patch
@@ -44,29 +45,43 @@ def pull():
 
 
 class TestAnnualAverages:
+    """Annual values are BLS's own published annual averages (period M13),
+    so the fact sheet matches what BLS reports. BLS only publishes M13 for
+    complete years, so partial years never appear."""
 
-    def test_full_year_is_mean_of_months(self, pull):
-        points = [(2024, f"M{m:02d}", str(m)) for m in range(1, 13)]
+    def test_annual_value_is_bls_published_average(self, pull):
+        # BLS computes the annual unemployment rate from annual totals, which
+        # differs from the mean of the monthly rates (here 6.5). Use BLS's.
+        points = [(2024, f"M{m:02d}", str(m)) for m in range(1, 13)] + [(2024, "M13", "6.6")]
         df, _ = pull(UNEMPLOYMENT_LAUS, points)
-        assert df["annual_unemployment_rate"].tolist() == [6.5]
+        assert df["annual_unemployment_rate"].tolist() == [6.6]
         assert df["months_reported"].tolist() == [12]
 
-    def test_year_without_december_is_excluded(self, pull):
-        points = _full_year(2025, "5.0") + [(2026, "M01", "6.4"), (2026, "M02", "6.2")]
+    def test_year_without_published_annual_average_is_excluded(self, pull):
+        points = _full_year(2025, "5.0") + [(2025, "M13", "5.0"),
+                                            (2026, "M01", "6.4"), (2026, "M02", "6.2")]
         df, _ = pull(UNEMPLOYMENT_LAUS, points)
         assert df["year"].tolist() == [2025]
 
-    def test_missing_month_is_skipped_and_counted(self, pull):
+    def test_missing_month_is_counted(self, pull):
         # Oct 2025 was not published (federal shutdown); BLS returns "-"
         points = [(2025, f"M{m:02d}", "-" if m == 10 else "4.0") for m in range(1, 13)]
+        points.append((2025, "M13", "4.0"))
         df, _ = pull(UNEMPLOYMENT_LAUS, points)
         assert df["annual_unemployment_rate"].tolist() == [4.0]
         assert df["months_reported"].tolist() == [11]
 
-    def test_bls_annual_average_rows_are_ignored(self, pull):
-        points = _full_year(2024, "3.0") + [(2024, "M13", "99.0")]
+    def test_unpublished_annual_average_is_excluded(self, pull):
+        points = _full_year(2024, "3.0") + [(2024, "M13", "-")]
         df, _ = pull(UNEMPLOYMENT_LAUS, points)
-        assert df["annual_unemployment_rate"].tolist() == [3.0]
+        assert df.empty
+
+    def test_api_request_asks_for_annual_averages(self):
+        from src.pipelines import bls
+        with patch("src.pipelines.bls.requests.post") as post:
+            post.return_value.json.return_value = _bls_response(_full_year(2024, "3.0"))
+            bls.fetch_bls_laus("LAUCN245100000000003", 2020, 2024)
+        assert post.call_args.kwargs["json"]["annualaverage"] is True
 
 
 class TestQCEW:
@@ -76,7 +91,7 @@ class TestQCEW:
         assert QCEW_PRIVATE_EMPLOYMENT.series_id == "ENU2451010510"
 
     def test_raw_response_labeled_by_program(self, pull):
-        _, save_raw = pull(QCEW_PRIVATE_EMPLOYMENT, _full_year(2025, "269150"))
+        _, save_raw = pull(QCEW_PRIVATE_EMPLOYMENT, _full_year(2025, "269150") + [(2025, "M13", "269150")])
         assert save_raw.call_args.args[2] == "QCEW"
 
     def test_data_dictionary_does_not_label_jobs_as_percent(self):

@@ -114,7 +114,7 @@ To see that exact code, go to `<pipeline_repo>/commit/<pipeline_version>`. If th
 | MSDE Report Card | School ratings and accountability scores | Annually, in winter |
 | NCES (via Urban Institute) | K-12 enrollment | Annually |
 
-Annual figures from monthly BLS data appear only once a year is complete (December published). Until then the current year is left off rather than shown as a partial-year average.
+Annual BLS figures (unemployment, jobs) are BLS's own published annual averages, so they match BLS exactly. BLS publishes these only once a year is complete, so the current year is left off rather than shown as a partial-year average.
 
 The pipeline detects the newest Census year on its own. You don't need to change any settings when new ACS data comes out.
 
