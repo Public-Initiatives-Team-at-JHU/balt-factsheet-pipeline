@@ -12,3 +12,4 @@ dependencies = [
 geo = ["geopandas>=0.14", "shapely>=2.0"]
 sharepoint = ["Office365-REST-Python-Client>=2.5"]
 dev = ["pytest>=7.0", "pytest-recording>=0.13"]
+plots = ["matplotlib>=3.9"]

@@ -25,5 +25,6 @@ One-off scripts used during development. Run them from the repository root, e.g.
 |------|-------------|
 | `validate_factsheet.py` | Recomputes metrics from the datasets to cross-check the fact sheet |
 | `regenerate_factsheet_from_existing.py` | Rebuilt the fact sheet from already-downloaded data when the Census API was timing out |
+| `check_msde_download.py` | Manual check that live MSDE Report Card downloads work (downloads real data; not part of `pytest`) |
 | `recompute_crime_only.py` | Re-pulled crime data after a classification fix |
 | `extend_to_present.py` | ⚠️ **Estimates** population for years Census hasn't published yet. Its output is a projection, not official data. Don't use it for anything you'll present as fact. |

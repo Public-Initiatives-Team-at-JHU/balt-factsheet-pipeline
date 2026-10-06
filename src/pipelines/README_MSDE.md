@@ -212,7 +212,7 @@ def compute_pct_schools_3plus_stars(df):
 Run the test script to verify the pipeline:
 
 ```bash
-python3 test_msde_pipeline.py
+PYTHONPATH=. python3 archive/scripts/check_msde_download.py
 ```
 
 Expected output: Downloads and processes 4 years (2022-2025) for Baltimore City, producing ~590 school records and ~11,000 detail records.
