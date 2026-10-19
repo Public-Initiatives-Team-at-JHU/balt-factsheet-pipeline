@@ -7,13 +7,18 @@ Build data pipelines for the JHU Public Impact Initiatives team's internal dashb
 The project has **three workstreams**, prioritized in this order:
 
 ### Workstream 1: Baltimore Fact Sheet (March-April 2026 delivery)
-Automate a currently-manual "Baltimore fact sheet" with **7-8 core statistics** about Baltimore City. This is city-level data (not neighborhood), refreshed on varying cadences (annual, monthly, quarterly). Pipeline these from public APIs so they auto-update. Target: last 5-10 years of trend data, starting from 2020 for consistency.
+Automate a currently-manual "Baltimore fact sheet" about Baltimore City. This is city-level data (not neighborhood), refreshed on varying cadences (annual, monthly, quarterly). Pipeline these from public APIs so they auto-update. Started as 7-8 core statistics; now **30 metrics** (`ALL_FACTSHEET_METRICS` in `metrics.py`) plus race/ethnicity breakdowns.
 
-**Core fact sheet stats (confirmed):**
-- Population (annual, Census Population Estimates Program)
-- Unemployment rate (monthly, BLS Local Area Unemployment Statistics)
-- Poverty rate (annual, ACS)
-- Additional 4-5 stats TBD — likely from the existing fact sheet (median income, education attainment, crime rate, housing)
+**Built and running** (2026-10):
+- Population: ACS 1-Year total population (2005-present). A PEP pipeline and `POPULATION_PEP_METRIC` exist but are not on the fact sheet or pulled by the runner.
+- Economy: median household income, poverty rate (ACS 1-Year); unemployment rate (BLS LAUS); private-sector jobs (BLS QCEW)
+- Education: bachelor's+, less than HS (ACS); K-12 enrollment (NCES CCD); school star ratings and accountability scores (MSDE Report Card)
+- Housing: homeownership, vacancy, mortgage and rent cost burden, average household size (ACS)
+- Demographics: race/ethnicity shares (ACS)
+- Crime: SRS Part 1 rates and homicides (2012-2024) and NIBRS Group A rates and homicides (2022-present), overlapping 2022-2024 for comparison
+- Equity: poverty, median income and homeownership by race/ethnicity (`equity_datasets.py`)
+
+Trend start years follow each source (ACS 1-Year from 2005, SRS from 2012, NIBRS from 2022), not one fixed year.
 
 ### Workstream 2: JHU Impact Data (longer timeline)
 Internal Hopkins data measuring community contributions — employee/student residence locations, procurement, small business spending, fellowships/grants. Data comes from internal sources (HR via president's liaison, finance, development office). Format and access method unknown — could be numbers, CSVs, or point files. This will take longer to stand up because data acquisition is still being figured out.
@@ -55,7 +60,7 @@ src/
     nces_ccd.py          # NCES Common Core of Data (K-12 enrollment)
   utils/
     config.py            # FIPS codes, API keys (from env vars), ACS vintage resolution
-    io.py                # Save raw responses, datasets, data dictionaries, processed outputs
+    io.py                # Save raw responses, datasets, data dictionaries, processed outputs (+ dated copies)
     validation.py        # Data quality checks for datasets and metrics
     provenance.py        # Stamps metadata outputs with repo URL + git commit; output-folder check
 scripts/                 # plot_factsheet.py: trend charts → data/visualizations/
@@ -64,7 +69,7 @@ tests/                   # pytest suite
 data/
   00 raw/                # Raw API responses (gitignored)
   01 clean/              # Cleaned per-source datasets + data dictionaries (gitignored)
-  02 processed/          # Fact sheet outputs for Power BI (gitignored)
+  02 processed/          # Fact sheet outputs for Power BI, plus dated copies (gitignored)
   visualizations/        # Trend plots per metric
 docs/
   BNIA_Indicator_Data_Sources.xlsx  # Full 63-indicator reference with table IDs + API endpoints
@@ -81,14 +86,16 @@ STATE_FIPS = "24"        # Maryland
 COUNTY_FIPS = "510"      # Baltimore City (independent city)
 COUNTY_FIPS_FULL = "24510"  # Combined for BLS queries
 
-# Census API
-CENSUS_API_BASE = "https://api.census.gov/data/{year}/acs/acs5"
+# Census API (city-level fact sheet uses ACS 1-Year; ACS 5-Year is for tract-level Phase 2)
+CENSUS_ACS1_BASE = "https://api.census.gov/data/{year}/acs/acs1"
+CENSUS_ACS5_BASE = "https://api.census.gov/data/{year}/acs/acs5"
 CENSUS_PEP_BASE = "https://api.census.gov/data/{year}/pep/population"
 CENSUS_API_KEY = ""      # REQUIRED (env var) — Census rejects keyless requests with an HTML "Missing Key" page. Get at api.census.gov/data/key_signup.html
 
 # BLS API
 BLS_API_BASE = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
-BLS_LAUS_SERIES = "LAUST245100000000003"  # Baltimore City unemployment rate (LAUS)
+BLS_LAUS_SERIES = "LAUCN245100000000003"  # Baltimore City unemployment rate (LAUS, county, NSA)
+# QCEW private-sector jobs: series ENU2451010510 (Baltimore City, private, all industries), in datasets.py
 BLS_API_KEY = ""  # Get at https://data.bls.gov/registrationEngine/ — optional, higher limits
 
 # ACS vintage — do NOT hardcode. Resolved at runtime by probing the Census API:
@@ -98,14 +105,16 @@ BLS_API_KEY = ""  # Get at https://data.bls.gov/registrationEngine/ — optional
 # Pin a vintage for a reproducible re-run: ACS1_VINTAGE=2024 python -m src.run_factsheet
 ACS1_FALLBACK_YEAR = 2024  # newest vintage confirmed published
 
-# Open Baltimore (Socrata)
-OPEN_BALT_BASE = "https://data.baltimorecity.gov/resource"
+# Open Baltimore crime: ArcGIS FeatureServer (the city migrated off Socrata).
+# URLs live in open_baltimore.py (SRS Part 1) and nibrs.py (NIBRS Group A).
+SRS_START_YEAR, SRS_END_YEAR = 2012, 2024  # SRS reporting ended 2024-12-31
+NIBRS_START_YEAR = 2022
 
 # BNIA CSAs
 NUM_CSAS = 55  # Baltimore has 55 Community Statistical Areas
 
 # Trend data range
-TREND_START_YEAR = 2020  # Team decision: start all trend data from 2020 for consistency
+TREND_START_YEAR = 2020  # Original team decision; in practice each source runs from its own start year (see Workstream 1)
 ```
 
 ## Build Order
@@ -114,7 +123,9 @@ TREND_START_YEAR = 2020  # Team decision: start all trend data from 2020 for con
 
 This is the quick win. City-level data, simple pipelines, immediate value.
 
-1. **BLS unemployment pipeline** — Monthly data, BLS LAUS API. Baltimore City series ID: `LAUST245100000000003`. Pull 2020-present.
+**Status (2026-10):** steps 1-4 and 6 are built (see Workstream 1 for the metric list; source documentation lives in the metadata outputs). Step 5, the Power BI dashboard, is built outside this repo.
+
+1. **BLS unemployment pipeline** — Monthly data, BLS LAUS API. Baltimore City series ID: `LAUCN245100000000003`.
 2. **Census population pipeline** — Annual population estimate from Population Estimates Program (PEP). Baltimore City. Pull 2020-present.
 3. **Census ACS core stats** — Poverty rate (B17001/B17021), median household income (B19013), education attainment (B15003). City-level (not tract — simpler than CSA aggregation). Pull last 5 ACS vintages.
 4. **Additional fact sheet stats** — TBD based on what the team lead confirms from the existing fact sheet. Likely crime rate (Open Baltimore), housing stats.
@@ -165,7 +176,9 @@ def fetch_bls_unemployment(start_year=TREND_START_YEAR, end_year=2025):
     return data["Results"]["series"][0]["data"]
 ```
 
-BLS API returns JSON with year, period (M01-M12), and value. Free tier: 25 requests/day, 10 years max per request. Registered: 500 requests/day, 20 years.
+BLS API returns JSON with year, period (M01-M12, plus M13 for the published annual average), and value. Free tier: 25 requests/day, 10 years max per request. Registered: 500 requests/day, 20 years.
+
+The pipeline uses BLS's published annual average (M13) rather than averaging months, so a year appears only once BLS has published it; no partial-year averages. The same `BLSDataset` handles **QCEW** private-sector jobs (series `ENU2451010510`, ~5-6 month lag). October 2025 LAUS was never published (federal shutdown).
 
 ### Census Population Estimates Program (PEP)
 
@@ -184,11 +197,11 @@ def fetch_population_estimate(year):
     return resp.json()
 ```
 
-Note: PEP variable names change each vintage year. Check the variables endpoint for the target year.
+Note: PEP variable names change each vintage year. Check the variables endpoint for the target year. `PEP_LATEST_VINTAGE` in `config.py` is hardcoded (2023) and must be bumped by hand if PEP is put back on the fact sheet.
 
 ### Census ACS (City-Level for Fact Sheet)
 
-For the fact sheet, pull at **county level** (Baltimore City = county 510), not tract level. This avoids the CSA crosswalk entirely.
+For the fact sheet, pull **ACS 1-Year** at **county level** (Baltimore City = county 510), not tract level. This avoids the CSA crosswalk entirely. (Sketch below; the real code is `census_acs.py` + `datasets.py`.)
 
 ```python
 def fetch_acs_city_level(variables, year=None):
@@ -275,7 +288,7 @@ Variable codes can shift between ACS vintages. For example, "drove alone" in B08
 
 ### Open Baltimore / Crime Pipeline — HIGH confidence
 
-Socrata SODA API. Incident-level data with lat/lon → geocode to CSA.
+Open Baltimore moved from Socrata to ArcGIS Hub; the city-level crime pipelines (`open_baltimore.py`, `nibrs.py`) query ArcGIS FeatureServers. The Socrata dataset IDs below are legacy references; non-crime datasets (permits, vacants) need their ArcGIS endpoints confirmed. Incident-level data with lat/lon → geocode to CSA.
 
 | Indicator | Socrata Dataset | Notes |
 |-----------|----------------|-------|
@@ -286,16 +299,6 @@ Socrata SODA API. Incident-level data with lat/lon → geocode to CSA.
 | Violent crime rate per 1K | BPD Part 1 Victim Based Crime | Filter: violent crimes |
 | Demolition permits per 1K | Baltimore City permits | Filter: demolition permits |
 | Vacant properties (city-owned) | DHCD vacants dataset | Address-level |
-
-```python
-def fetch_socrata(dataset_id, where_clause=None, limit=50000):
-    url = f"{OPEN_BALT_BASE}/{dataset_id}.json"
-    params = {"$limit": limit}
-    if where_clause:
-        params["$where"] = where_clause
-    resp = requests.get(url, params=params)
-    return resp.json()
-```
 
 ### Other Pipelines — MEDIUM to LOW confidence
 
@@ -358,16 +361,29 @@ Power BI dashboards embedded in the SharePoint site. Each dashboard page should 
 - Source attribution and metadata for each stat
 - Option for chatbot-style Q&A with preloaded questions
 
-Data schema (flat table, one row per observation):
+Phase 1 writes four CSVs to `data/02 processed/` (or `FACTSHEET_OUTPUT_DIR`):
+
+| File | Shape |
+|------|-------|
+| `baltimore_factsheet.csv` | Wide: one row per year, one column per metric |
+| `baltimore_factsheet_long.csv` | Long: one row per metric per year, aggregate + race/ethnicity groups |
+| `baltimore_factsheet_metadata.csv` | One row per metric: definition, formula, source, caveats, `pipeline_repo`, `pipeline_version` |
+| `baltimore_factsheet_equity_metadata.csv` | Same, for the race/ethnicity metrics |
+
+Each run also writes a dated copy of each (`baltimore_factsheet_2026-10-19.csv`, from `save_processed`). Power BI reads the undated names, so those must not change; dated copies are a run history and are never pruned.
+
+Long-format schema:
 ```
-geography | indicator_name | value | year | period | source | source_url | last_updated
+indicator_id | geography | indicator_name | demographic_group | value | margin_of_error | year | period | source | source_url | last_updated
 ```
 
-Where `geography` is "Baltimore City" for Phase 1, and CSA name for Phase 2. `period` captures the cadence (e.g., "2024-M03" for monthly BLS, "2019-2023" for 5-year ACS).
+Where `geography` is "Baltimore City" for Phase 1, and CSA name for Phase 2. `period` currently equals the year for annual values; Phase 2 may use it for cadence (e.g., "2019-2023" for 5-year ACS).
+
+A source that fails to download (other than Census, which stops the run) prints `FAILED` and the run continues, leaving that metric's column blank in the outputs. Check the run output before publishing.
 
 ## Environment
 
-- Python 3.10+
+- Python 3.9+ (`requires-python` in `pyproject.toml`)
 - Key packages: `requests`, `pandas`, `geopandas`, `openpyxl`
 - For spatial joins (geocode→CSA): `geopandas`, `shapely`
 - For Socrata: `sodapy` (optional convenience wrapper)

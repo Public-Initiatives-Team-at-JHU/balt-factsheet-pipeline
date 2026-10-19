@@ -1096,15 +1096,15 @@ ALL_FACTSHEET_DATASETS.extend([
 
 @dataclass
 class OpenBaltimoreDataset:
-    """Declarative definition for an Open Baltimore (Socrata) dataset.
+    """Declarative definition for an Open Baltimore (ArcGIS) dataset.
 
     Unlike ACS datasets (one API call per year, pre-aggregated),
     Open Baltimore data is incident-level. The pull function queries
-    the Socrata API with SoQL aggregation to get annual counts, then
-    classifies crime types in pandas.
+    the ArcGIS FeatureServer with server-side statistics to get annual
+    counts, then classifies crime types in pandas.
     """
 
-    dataset_id: str     # 4x4 Socrata ID, e.g. "wsfq-mvij"
+    dataset_id: str     # Legacy Socrata ID, e.g. "wsfq-mvij" (cited in caveats)
     name: str           # Short name for file naming
     title: str          # Human-readable title
     description: str    # What this dataset covers
@@ -1141,7 +1141,7 @@ def pull_and_clean_ob_crime_dataset(
     """Fetch Open Baltimore crime data, aggregate by year, and classify.
 
     Process:
-    1. Query Socrata with SoQL aggregation (year + description → count)
+    1. Query ArcGIS with grouped statistics (year + description → count)
     2. Save raw aggregated response (Layer 1)
     3. Parse year from ISO datetime string
     4. Classify each description as violent / property

@@ -41,7 +41,7 @@ This takes a few minutes. It downloads the latest data, recalculates every metri
 - `All validation checks passed.` means you're good to go.
 - If it lists **ERROR** lines, don't publish the new numbers yet. Something in the source data looks wrong (missing years, impossible values). **WARN** lines are worth reading but usually fine.
 
-If a Census download fails, the run stops with an `ERROR`. Census is the core of the fact sheet, so wait a bit and run it again. If any other source is temporarily down (BLS, crime, schools), the run prints `FAILED` for that source and keeps going without it.
+If a Census download fails, the run stops with an `ERROR`. Census is the core of the fact sheet, so wait a bit and run it again. If any other source is temporarily down (BLS, crime, schools), the run prints `FAILED` for that source and keeps going without it. Its metrics then appear in the outputs as a column with no numbers, so scroll back through the run's messages for `FAILED` before publishing. Without a BLS key, the most common cause is BLS's daily limit of 25 downloads: wait until the next day, or add a key.
 
 **Optional:** regenerate the trend charts in `data/visualizations/`:
 
