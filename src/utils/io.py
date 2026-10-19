@@ -9,7 +9,7 @@ Layer 3 (processed): save_processed     → data/02 processed/
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -111,17 +111,27 @@ def save_data_dictionary(columns: list, name: str) -> Path:
     return filepath
 
 
-def save_processed(df: pd.DataFrame, name: str) -> Path:
+def save_processed(
+    df: pd.DataFrame, name: str, run_date: date | None = None
+) -> Path:
     """Save a processed output CSV to data/02 processed/.
+
+    Writes two copies: `{name}.csv`, which Power BI reads by name and which
+    each run overwrites, and `{name}_{YYYY-MM-DD}.csv`, a dated copy that is
+    kept as a record of that run. A rerun on the same day replaces that
+    day's dated copy.
 
     Args:
         df: Dashboard-ready DataFrame
         name: Output name, e.g. "baltimore_factsheet" or "methodology"
+        run_date: Date for the dated copy (default: today, local time)
 
     Returns:
-        Path to the saved CSV.
+        Path to the undated CSV.
     """
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    run_date = run_date or date.today()
     filepath = PROCESSED_DIR / f"{name}.csv"
     df.to_csv(filepath, index=False)
+    df.to_csv(PROCESSED_DIR / f"{name}_{run_date.isoformat()}.csv", index=False)
     return filepath

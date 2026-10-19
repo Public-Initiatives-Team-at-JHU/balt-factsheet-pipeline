@@ -1,11 +1,17 @@
 """Tests for src/utils/io.py — the three-layer I/O utilities."""
 
 import json
+from datetime import date
 
 import pandas as pd
 import pytest
 
-from src.utils.io import save_data_dictionary, save_dataset, save_raw_response
+from src.utils.io import (
+    save_data_dictionary,
+    save_dataset,
+    save_processed,
+    save_raw_response,
+)
 
 
 class TestSaveRawResponse:
@@ -137,3 +143,43 @@ class TestSaveDataDictionary:
         loaded = pd.read_csv(path)
         assert loaded.iloc[0]["column"] == "pop"
         assert loaded.iloc[0]["census_variable"] == "B01003_001E"
+
+
+class TestSaveProcessed:
+    """Tests for Layer 3: dashboard outputs, written undated and datestamped."""
+
+    def test_writes_undated_file_for_power_bi(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("src.utils.io.PROCESSED_DIR", tmp_path)
+
+        df = pd.DataFrame({"year": [2025], "value": [1]})
+        path = save_processed(df, "baltimore_factsheet")
+
+        assert path == tmp_path / "baltimore_factsheet.csv"
+        assert path.exists()
+
+    def test_writes_datestamped_copy(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("src.utils.io.PROCESSED_DIR", tmp_path)
+
+        df = pd.DataFrame({"year": [2025], "value": [1]})
+        save_processed(df, "baltimore_factsheet", run_date=date(2026, 10, 19))
+
+        dated = tmp_path / "baltimore_factsheet_2026-10-19.csv"
+        assert dated.exists()
+        pd.testing.assert_frame_equal(pd.read_csv(dated), df)
+
+    def test_defaults_to_today(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("src.utils.io.PROCESSED_DIR", tmp_path)
+
+        save_processed(pd.DataFrame({"a": [1]}), "out")
+
+        assert (tmp_path / f"out_{date.today().isoformat()}.csv").exists()
+
+    def test_earlier_dated_copies_are_kept(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("src.utils.io.PROCESSED_DIR", tmp_path)
+
+        save_processed(pd.DataFrame({"a": [1]}), "out", run_date=date(2026, 10, 6))
+        save_processed(pd.DataFrame({"a": [2]}), "out", run_date=date(2026, 10, 19))
+
+        assert pd.read_csv(tmp_path / "out_2026-10-06.csv").iloc[0]["a"] == 1
+        assert pd.read_csv(tmp_path / "out_2026-10-19.csv").iloc[0]["a"] == 2
+        assert pd.read_csv(tmp_path / "out.csv").iloc[0]["a"] == 2

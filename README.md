@@ -60,6 +60,8 @@ Everything Power BI needs is in `data/02 processed/`:
 | `baltimore_factsheet_metadata.csv` | For every metric: plain-English definition, formula, source, link and caveats |
 | `baltimore_factsheet_equity_metadata.csv` | The same, for the race/ethnicity breakdowns |
 
+Each run also saves a dated copy of every file, e.g. `baltimore_factsheet_2026-10-19.csv`, so you can see what the fact sheet said on a given day. Power BI reads only the undated files, which every run overwrites. The dated copies pile up and are never deleted automatically. A second run on the same day replaces that day's copies.
+
 The metadata files are the place to answer "where does this number come from?" They also record which version of this code produced them. See "Tracing a file back to the code" below.
 
 Two other folders are useful if you want to dig in:
@@ -76,7 +78,7 @@ The published outputs live in SharePoint, not on GitHub:
 
 The Power BI dashboard reads the files in that SharePoint folder. To publish a new run, pick one of these options.
 
-**Option A: upload by hand.** After the run, upload the CSVs from `data/02 processed/` to the SharePoint outputs folder, replacing the old files. Keep the file names the same, or Power BI will lose track of them.
+**Option A: upload by hand.** After the run, upload the CSVs from `data/02 processed/` to the SharePoint outputs folder, replacing the old files. Keep the undated file names the same, or Power BI will lose track of them. Upload the dated copies too if you want a history in SharePoint.
 
 **Option B: have the pipeline write straight to SharePoint (recommended).** This needs no special access, just the OneDrive app on your computer:
 
