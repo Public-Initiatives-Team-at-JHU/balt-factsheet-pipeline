@@ -50,7 +50,7 @@ from src.utils.config import (
     acs1_years,
     resolve_acs_vintage_tokens,
 )
-from src.utils.io import save_dataset, save_raw_response, save_processed
+from src.utils.io import save_data_dictionary, save_dataset, save_raw_response, save_processed
 
 # ── Race groups ──────────────────────────────────────────────────────────────
 # Maps internal key → (Census table suffix, display label)
@@ -205,6 +205,7 @@ def pull_equity_dataset(dataset: ACSDataset, save: bool = True) -> pd.DataFrame:
 
     if save:
         save_dataset(df, dataset.file_name)
+        save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
 
     return df
 
@@ -308,8 +309,8 @@ def compute_equity_metrics(equity_datasets: dict[str, pd.DataFrame]) -> pd.DataF
     rows = []
 
     for id_template, indicator_name, table_base, compute_fn, dataset_dict, unit, _ in _EQUITY_METRIC_SPECS:
-        source_url = resolve_acs_vintage_tokens(f"{_ACS1Y_URL}.{table_base}")
         for race_key, (suffix, label) in RACE_GROUPS.items():
+            source_url = resolve_acs_vintage_tokens(f"{_ACS1Y_URL}.{table_base}{suffix}")
             dataset = dataset_dict[race_key]
             df = equity_datasets.get(dataset.file_name)
             if df is None:
@@ -351,11 +352,11 @@ def build_equity_methodology_table() -> pd.DataFrame:
     rows = []
 
     for id_template, indicator_name, table_base, _, dataset_dict, unit, formula_template in _EQUITY_METRIC_SPECS:
-        source_url = resolve_acs_vintage_tokens(f"{_ACS1Y_URL}.{table_base}")
         for race_key, (suffix, label) in RACE_GROUPS.items():
             indicator_id = id_template.replace("{key}", race_key)
             formula = formula_template.replace("{suffix}", suffix)
             source_table = f"{table_base}{suffix}"
+            source_url = resolve_acs_vintage_tokens(f"{_ACS1Y_URL}.{source_table}")
             caveats = _SUPPRESSION_OVERRIDES.get((id_template, race_key), _BASE_EQUITY_CAVEATS)
 
             rows.append({

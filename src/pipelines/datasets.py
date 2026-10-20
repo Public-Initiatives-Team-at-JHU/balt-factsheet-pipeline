@@ -32,6 +32,7 @@ from src.pipelines.census_acs import fetch_acs_city
 from src.pipelines.census_pop import fetch_pep_population, parse_pep_year
 from src.pipelines.open_baltimore import (
     BPD_DATA_QUALITY_ISSUE_YEAR,
+    BPD_PART1_CRIME_DATASET_ID,
     classify_crime,
     fetch_crime_counts_by_year,
 )
@@ -285,7 +286,18 @@ class BLSDataset:
 
     @property
     def data_dictionary_rows(self) -> list:
-        """Data dictionary entries for all columns."""
+        """Data dictionary for the annual dataset (one row per year)."""
+        annual_columns = {"year", "geography", f"annual_{self.measure}", "months_reported"}
+        return [r for r in self._all_dictionary_rows if r["column"] in annual_columns]
+
+    @property
+    def monthly_data_dictionary_rows(self) -> list:
+        """Data dictionary for the _monthly dataset (one row per month)."""
+        return [r for r in self._all_dictionary_rows if r["column"] != "months_reported"]
+
+    @property
+    def _all_dictionary_rows(self) -> list:
+        """Entries for every column across the annual and monthly datasets."""
         return [
             {
                 "column": "year",
@@ -428,8 +440,11 @@ def pull_and_clean_bls_dataset(
             how="left"
         ).sort_values(["year", "month"])
         save_dataset(monthly_full, f"{dataset.file_name}_monthly")
-        # Save data dictionary
+        # Save a data dictionary for each file
         save_data_dictionary(dataset.data_dictionary_rows, dataset.file_name)
+        save_data_dictionary(
+            dataset.monthly_data_dictionary_rows, f"{dataset.file_name}_monthly"
+        )
 
     return annual_df
 
@@ -1104,7 +1119,7 @@ class OpenBaltimoreDataset:
     counts, then classifies crime types in pandas.
     """
 
-    dataset_id: str     # Legacy Socrata ID, e.g. "wsfq-mvij" (cited in caveats)
+    dataset_id: str     # Open Baltimore Hub item ID (names raw files)
     name: str           # Short name for file naming
     title: str          # Human-readable title
     description: str    # What this dataset covers
@@ -1225,7 +1240,7 @@ def pull_and_clean_ob_crime_dataset(
 
 
 CRIME_PART1 = OpenBaltimoreDataset(
-    dataset_id="wsfq-mvij",
+    dataset_id=BPD_PART1_CRIME_DATASET_ID,
     name="crime_part1",
     title="BPD Part 1 Crime (SRS)",
     description=(

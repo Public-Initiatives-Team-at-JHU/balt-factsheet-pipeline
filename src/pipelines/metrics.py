@@ -659,14 +659,14 @@ PCT_OTHER_RACE_METRIC = Metric(
 
 
 _BPD_CAVEATS = (
-    "Source: BPD Part 1 Victim Based Crime Data (wsfq-mvij). "
+    "Source: BPD Part 1 Crime Data (Legacy SRS), Open Baltimore. "
     "⚠️ Data quality issues from May 2021 due to BPD Records Management System "
     "transition — 2021 and 2022 annual totals are likely understated. "
     "Rate denominator is ACS 1-Year total population estimate. "
     "Note: Common/simple assault is Part 2 (not Part 1) per FBI UCR standards and is excluded."
 )
-_BPD_URL = "https://data.baltimorecity.gov/Public-Safety/BPD-Part-1-Victim-Based-Crime-Data/wsfq-mvij"
-_BPD_SOURCE = "BPD Part 1 Victim Based Crime Data / Open Baltimore"
+_BPD_URL = "https://data.baltimorecity.gov/datasets/e0992dddbbf64231976d5d57763ec4f5"
+_BPD_SOURCE = "BPD Part 1 Crime Data (Legacy SRS) / Open Baltimore"
 
 
 def _crime_rate(col: str):
@@ -683,7 +683,7 @@ PART1_CRIME_RATE_METRIC = Metric(
     description="Total FBI UCR Part 1 crimes per 1,000 residents",
     compute=_crime_rate("part1_rate_per_1k"),
     source_dataset="ob_crime_rates",
-    source_table="BPD Part 1 (wsfq-mvij)",
+    source_table="Part 1 Crime Data (Legacy SRS)",
     formula_description=(
         "Annual Part 1 crime incident count / ACS total population × 1,000. "
         "Part 1 crimes = violent + property (see violent/property metrics)."
@@ -701,7 +701,7 @@ VIOLENT_CRIME_RATE_METRIC = Metric(
     description="Violent crimes per 1,000 residents (homicide, rape, robbery, aggravated assault)",
     compute=_crime_rate("violent_rate_per_1k"),
     source_dataset="ob_crime_rates",
-    source_table="BPD Part 1 (wsfq-mvij)",
+    source_table="Part 1 Crime Data (Legacy SRS)",
     formula_description=(
         "Annual violent crime count / ACS total population × 1,000. "
         "Violent = HOMICIDE + RAPE + ROBBERY (all types) + AGG. ASSAULT + SHOOTING."
@@ -719,7 +719,7 @@ PROPERTY_CRIME_RATE_METRIC = Metric(
     description="Property crimes per 1,000 residents (burglary, larceny, auto theft, arson)",
     compute=_crime_rate("property_rate_per_1k"),
     source_dataset="ob_crime_rates",
-    source_table="BPD Part 1 (wsfq-mvij)",
+    source_table="Part 1 Crime Data (Legacy SRS)",
     formula_description=(
         "Annual property crime count / ACS total population × 1,000. "
         "Property = BURGLARY + LARCENY + LARCENY FROM AUTO + AUTO THEFT + ARSON."
@@ -737,7 +737,7 @@ HOMICIDE_COUNT_METRIC = Metric(
     description="Total homicide incidents reported to BPD",
     compute=lambda row: row.get("homicide_count"),
     source_dataset="ob_crime_rates",
-    source_table="BPD Part 1 (wsfq-mvij)",
+    source_table="Part 1 Crime Data (Legacy SRS)",
     formula_description="Direct count of incidents where Description = 'HOMICIDE'.",
     source_name=_BPD_SOURCE,
     source_url=_BPD_URL,
@@ -754,7 +754,7 @@ _NIBRS_CAVEATS = (
     "⚠️ NIBRS reporting began in 2022 with full transition Jan 1, 2025. "
     "⚠️ NIBRS eliminates the hierarchy rule, so incident counts are ~10.6% higher "
     "than SRS for the same time period (multiple offenses per incident now captured). "
-    "⚠️ NOT directly comparable to SRS Part 1 data (2010-2024). "
+    "⚠️ NOT directly comparable to SRS Part 1 data (2012-2024). "
     "Rate denominator is ACS 1-Year total population estimate."
 )
 _NIBRS_URL = "https://data.baltimorecity.gov/datasets/baltimore::nibrs-group-a-crime-data"
@@ -834,7 +834,7 @@ HOMICIDE_COUNT_NIBRS_METRIC = Metric(
 
 # ── MSDE Report Card Metrics ──────────────────────────────────────────────────
 
-_MSDE_URL = "https://reportcard.msde.maryland.gov/"
+_MSDE_URL = "https://reportcard.msde.maryland.gov/Graphs/#/DataDownloads/datadownload"
 _MSDE_SOURCE = "Maryland State Department of Education Report Card"
 _MSDE_CAVEATS = (
     "Data starts 2022 (school year 2021-2022). No report cards for 2020-2021 (COVID). "
@@ -966,7 +966,7 @@ K12_ENROLLMENT_METRIC = Metric(
     source_table="CCD LEA Directory",
     formula_description="Direct read of total enrollment from NCES CCD district directory. Covers all grades, all races, all sexes.",
     source_name="NCES Common Core of Data (via Urban Institute Education Data API)",
-    source_url="https://educationdata.urban.org/api/v1/school-districts/ccd/directory/",
+    source_url="https://nces.ed.gov/ccd/districtsearch/district_detail.asp?ID2=2400090",
     unit="count",
     update_frequency="annual",
     caveats=(

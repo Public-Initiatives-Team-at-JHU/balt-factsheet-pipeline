@@ -104,3 +104,22 @@ class TestQCEW:
 
     def test_metric_reads_qcew_dataset(self):
         assert PRIVATE_JOBS_QCEW_METRIC.source_dataset == QCEW_PRIVATE_EMPLOYMENT.file_name
+
+
+class TestDataDictionaries:
+    """The annual and _monthly files each get a dictionary of their own columns."""
+
+    @pytest.mark.parametrize("dataset", [UNEMPLOYMENT_LAUS, QCEW_PRIVATE_EMPLOYMENT])
+    def test_each_saved_file_has_matching_dictionary(self, dataset):
+        points = _full_year(2024, "5") + [(2024, "M13", "5")]
+        with patch("src.pipelines.datasets.fetch_bls_laus", return_value=_bls_response(points)), \
+             patch("src.pipelines.datasets.save_raw_response"), \
+             patch("src.pipelines.datasets.save_dataset") as save_dataset, \
+             patch("src.pipelines.datasets.save_data_dictionary") as save_dictionary:
+            pull_and_clean_bls_dataset(dataset)
+
+        saved_columns = {c.args[1]: list(c.args[0].columns) for c in save_dataset.call_args_list}
+        dictionaries = {c.args[1]: [r["column"] for r in c.args[0]] for c in save_dictionary.call_args_list}
+        assert set(dictionaries) == set(saved_columns)
+        for name, columns in saved_columns.items():
+            assert sorted(dictionaries[name]) == sorted(columns), name

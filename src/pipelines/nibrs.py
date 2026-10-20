@@ -3,7 +3,7 @@ Open Baltimore NIBRS crime data client — ArcGIS FeatureServer.
 
 Baltimore Police Department transitioned to NIBRS (National Incident-Based
 Reporting System) effective January 1, 2025. This dataset covers 2022-present
-and provides overlap with the legacy SRS dataset (2010-2024).
+and provides overlap with the legacy SRS dataset (through 2024).
 
 NIBRS Group A dataset on Open Baltimore:
   https://data.baltimorecity.gov/datasets/baltimore::nibrs-group-a-crime-data

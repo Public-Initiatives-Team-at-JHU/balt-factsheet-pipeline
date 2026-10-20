@@ -111,7 +111,6 @@ To see that exact code, go to `<pipeline_repo>/commit/<pipeline_version>`. If th
 | Source | Metrics | New data released |
 |--------|---------|-------------------|
 | Census ACS 1-Year | Population, income, poverty, education, housing, race/ethnicity | Every September (covers the prior year) |
-| Census Population Estimates | Annual population estimate | Every spring (city/county estimates) |
 | BLS Local Area Unemployment Statistics | Unemployment rate | Monthly |
 | BLS Quarterly Census of Employment and Wages | Private-sector jobs | Quarterly, about 5–6 months after each quarter |
 | Baltimore Police (Open Baltimore) | Crime rates, homicides | Ongoing |
@@ -201,9 +200,10 @@ archive/               Development history: verification reports and one-off scr
 ## Data sources
 
 - **Census American Community Survey (ACS) 1-Year:** city-level demographics, income, poverty, education, housing. https://www.census.gov/programs-surveys/acs
-- **Census Population Estimates Program:** official annual population estimates. https://www.census.gov/programs-surveys/popest.html
 - **BLS Local Area Unemployment Statistics:** monthly unemployment rate. https://www.bls.gov/lau/
 - **BLS Quarterly Census of Employment and Wages (QCEW):** private-sector jobs located in Baltimore City, all industries. Counts jobs by workplace (including commuters into the city), not employed residents. https://www.bls.gov/cew/
-- **Open Baltimore, BPD crime data:** Part 1 crime (older SRS system, through 2024) and NIBRS (2022 onward; the two overlap in 2022–2024 for comparison). https://data.baltimorecity.gov/
+- **Open Baltimore, BPD crime data:** Part 1 crime (older SRS system, 2012–2024; https://data.baltimorecity.gov/datasets/e0992dddbbf64231976d5d57763ec4f5) and NIBRS Group A (2022 onward; https://data.baltimorecity.gov/datasets/baltimore::nibrs-group-a-crime-data). The two overlap in 2022–2024 for comparison. Crime rates use the ACS population as the denominator.
 - **Maryland State Department of Education Report Card:** school ratings. https://reportcard.msde.maryland.gov/ (details in `src/pipelines/README_MSDE.md`)
-- **NCES Common Core of Data:** K-12 enrollment, via the Urban Institute Education Data API. https://educationdata.urban.org/
+- **NCES Common Core of Data:** K-12 enrollment for Baltimore City Public Schools, via the Urban Institute Education Data API. https://nces.ed.gov/ccd/ (API: https://educationdata.urban.org/)
+
+The population on the fact sheet comes from the ACS. The code can also pull the Census Population Estimates Program (`census_pop.py`), but that series isn't on the fact sheet or pulled by the regular run.

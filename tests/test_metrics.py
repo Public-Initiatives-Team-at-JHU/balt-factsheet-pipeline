@@ -311,3 +311,19 @@ class TestAcsSourceUrlVintage:
         declared = {m.id: m.source_url for m in ALL_FACTSHEET_METRICS}
         for _, row in bls.iterrows():
             assert row["source_url"] == declared[row["indicator_id"]]
+
+
+# ── Source citations ─────────────────────────────────────────────────────────
+
+
+class TestSourceCitations:
+    def test_no_metric_cites_retired_socrata_dataset(self):
+        # Open Baltimore retired Socrata; wsfq-mvij no longer exists on the Hub.
+        result = build_methodology_table(ALL_FACTSHEET_METRICS)
+        cited = result[["source_table", "source_url", "caveats"]].astype(str)
+        assert not cited.apply(lambda col: col.str.contains("wsfq-mvij")).any().any()
+
+    def test_source_urls_are_pages_not_api_endpoints(self):
+        # Readers click these links; a bare API path returns 404 in a browser.
+        urls = [m.source_url for m in ALL_FACTSHEET_METRICS]
+        assert not [u for u in urls if "/api/" in u]

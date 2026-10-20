@@ -7,8 +7,8 @@ crime dataset is now served from an ArcGIS FeatureServer:
   https://services1.arcgis.com/UWYHeuuJISiGmgXx/arcgis/rest/services/
       Part1_Crime_Beta/FeatureServer/0
 
-Coverage: historical SRS data through 12/31/2024. As of 2025 BPD
-switched to NIBRS reporting; a separate dataset covers 2025-present.
+Coverage: historical SRS data through 12/31/2024. BPD switched to NIBRS
+reporting on Jan 1, 2025; the NIBRS dataset (nibrs.py) covers 2022-present.
 
 ⚠️  DATA QUALITY CAVEAT:
 BPD transitioned Records Management Systems in May 2021. Annual totals
@@ -31,8 +31,9 @@ BPD_PART1_FEATURESERVER = (
     "/Part1_Crime_Beta/FeatureServer/0"
 )
 
-# Still used for legacy reference in dataset metadata
-BPD_PART1_CRIME_DATASET_ID = "wsfq-mvij"
+# Open Baltimore Hub item ID ("Part 1 Crime Data (Legacy SRS)"). Replaces the
+# retired Socrata ID wsfq-mvij.
+BPD_PART1_CRIME_DATASET_ID = "e0992dddbbf64231976d5d57763ec4f5"
 
 # ── Crime type classification ─────────────────────────────────────────────────
 # Maps BPD Description values to FBI UCR Part 1 violent/property categories.
